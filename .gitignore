@@ -73,3 +73,6 @@ nohup.out
 # Temporary files
 *.tmp
 *.temp
+
+# Lock .gitignore from future changes
+.gitignore
