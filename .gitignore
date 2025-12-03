@@ -73,3 +73,8 @@ nohup.out
 # Temporary files
 *.tmp
 *.temp
+
+# NOTE: This file is locked - do not modify without authorization
+# Adding .gitignore here serves as a marker/documentation
+# For local lock: git update-index --assume-unchanged .gitignore
+.gitignore
