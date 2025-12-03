@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import http.server
-import ssl
 import os
+import ssl
 
 # Port 6942 is for the website (frontend)
 PORT = 6942
-SERVER_ADDRESS = ('0.0.0.0', PORT)
+SERVER_ADDRESS = ("0.0.0.0", PORT)
 
 # Ensure certs exist
 if not os.path.exists("key.pem") or not os.path.exists("cert.pem"):
@@ -17,12 +17,14 @@ httpd = http.server.HTTPServer(SERVER_ADDRESS, http.server.SimpleHTTPRequestHand
 
 # Create an SSL context
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ctx.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
+ctx.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
 
 # Wrap the socket
 httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
 
 print(f"🔒 Secure Frontend running at https://localhost:{PORT}")
 print(f"🔒 External Access: https://pascacktechnology.ddns.net:{PORT}")
-print("⚠️  NOTE: You will see a security warning in the browser. Click 'Advanced -> Proceed'.")
+print(
+    "⚠️  NOTE: You will see a security warning in the browser. Click 'Advanced -> Proceed'."
+)
 httpd.serve_forever()

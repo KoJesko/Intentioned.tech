@@ -20,7 +20,9 @@ if not VENV_DIR.exists():
 
 if Path(sys.executable).resolve() != VENV_PYTHON.resolve():
     if not VENV_PYTHON.exists():
-        raise RuntimeError(f"Expected virtualenv interpreter at {VENV_PYTHON}, but it was not found.")
+        raise RuntimeError(
+            f"Expected virtualenv interpreter at {VENV_PYTHON}, but it was not found."
+        )
     print(f"↻ Re-launching inside project venv: {VENV_DIR}")
     os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
 
@@ -31,11 +33,13 @@ import json
 import re
 from threading import Thread
 
-import numpy as np
-import torch
-import soundfile as sf
 import edge_tts
+import numpy as np
+import soundfile as sf
+import torch
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSpeechSeq2Seq,
@@ -44,16 +48,16 @@ from transformers import (
     TextIteratorStreamer,
     pipeline,
 )
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 # Initialize the App
 app = FastAPI()
+
 
 # Serve static files (index.html, script.js, etc.)
 @app.get("/")
 async def serve_index():
     return FileResponse(PROJECT_ROOT / "index.html")
+
 
 @app.get("/{filename:path}")
 async def serve_static(filename: str):
@@ -61,6 +65,7 @@ async def serve_static(filename: str):
     if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
     return FileResponse(PROJECT_ROOT / "index.html")
+
 
 # --- Conversational tuning knobs ---
 STT_MAX_NEW_TOKENS = 256
@@ -110,14 +115,20 @@ def _resolve_edge_voice(preferred: str | None) -> str:
     return EDGE_TTS_AVAILABLE_VOICES["female_us"]
 
 
-EDGE_TTS_ENABLED = os.getenv("EDGE_TTS_ENABLED", "true").lower() not in {"0", "false", "no"}
+EDGE_TTS_ENABLED = os.getenv("EDGE_TTS_ENABLED", "true").lower() not in {
+    "0",
+    "false",
+    "no",
+}
 EDGE_TTS_RATE = os.getenv("EDGE_TTS_RATE", "+0%")
 EDGE_TTS_VOLUME = os.getenv("EDGE_TTS_VOLUME", "+0%")
 EDGE_TTS_PITCH = os.getenv("EDGE_TTS_PITCH", "+0Hz")
 EDGE_TTS_ACTIVE_VOICE = _resolve_edge_voice(os.getenv("EDGE_TTS_VOICE"))
 
 
-def decode_audio_payload(audio_bytes: bytes, mime_type: str | None = None) -> tuple[np.ndarray, int]:
+def decode_audio_payload(
+    audio_bytes: bytes, mime_type: str | None = None
+) -> tuple[np.ndarray, int]:
     if not audio_bytes:
         raise ValueError("No audio payload supplied")
 
@@ -127,12 +138,17 @@ def decode_audio_payload(audio_bytes: bytes, mime_type: str | None = None) -> tu
             data = np.mean(data, axis=1)
         if samplerate != TARGET_SAMPLE_RATE:
             data = torch.from_numpy(data).to(torch.float32)
-            data = torch.nn.functional.interpolate(
-                data.unsqueeze(0).unsqueeze(0),
-                size=int(len(data) * TARGET_SAMPLE_RATE / samplerate),
-                mode="linear",
-                align_corners=False,
-            ).squeeze().cpu().numpy()
+            data = (
+                torch.nn.functional.interpolate(
+                    data.unsqueeze(0).unsqueeze(0),
+                    size=int(len(data) * TARGET_SAMPLE_RATE / samplerate),
+                    mode="linear",
+                    align_corners=False,
+                )
+                .squeeze()
+                .cpu()
+                .numpy()
+            )
             samplerate = TARGET_SAMPLE_RATE
         return data.astype(np.float32), samplerate
     except Exception:
@@ -192,6 +208,7 @@ def load_llm_stack(model_id: str):
         )
         return load_llm_stack(LLM_DEFAULT_MODEL_ID)
 
+
 # --- HARDWARE SETUP ---
 device = "cuda" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -229,7 +246,9 @@ tokenizer, llm_model, ACTIVE_LLM_MODEL_ID = load_llm_stack(LLM_MODEL_ID)
 print(f"🎙️ Edge TTS voice ready: {EDGE_TTS_ACTIVE_VOICE}")
 
 
-def convert_audio_to_wav(audio_bytes: bytes, target_samplerate: int = TARGET_SAMPLE_RATE) -> bytes:
+def convert_audio_to_wav(
+    audio_bytes: bytes, target_samplerate: int = TARGET_SAMPLE_RATE
+) -> bytes:
     """Ensure audio bytes are 16-bit mono WAV at the target sample rate."""
     if not audio_bytes:
         return b""
@@ -285,11 +304,13 @@ async def synthesize_with_edge_tts(text: str) -> bytes | None:
         return None
 
 
-def trim_history(history: list[dict], keep_messages: int = MAX_HISTORY_MESSAGES) -> None:
+def trim_history(
+    history: list[dict], keep_messages: int = MAX_HISTORY_MESSAGES
+) -> None:
     if len(history) <= keep_messages:
         return
     system_prompt = history[0]
-    recent = history[-(keep_messages - 1):]
+    recent = history[-(keep_messages - 1) :]
     history[:] = [system_prompt, *recent]
 
 
@@ -305,7 +326,9 @@ def aggregate_transcript(stt_output: dict | list) -> str:
             return clean_transcript_text(combined)
         return clean_transcript_text(stt_output.get("text", ""))
     if isinstance(stt_output, list):
-        combined = " ".join(item.get("text", "") for item in stt_output if isinstance(item, dict))
+        combined = " ".join(
+            item.get("text", "") for item in stt_output if isinstance(item, dict)
+        )
         return clean_transcript_text(combined)
     return clean_transcript_text(str(stt_output))
 
@@ -342,21 +365,21 @@ async def emit_tts_chunk(
     if not normalized:
         return ""
     if mute_audio:
-        await websocket.send_json({
-            "text": normalized,
-            "status": "streaming",
-            "ttsMuted": True,
-        })
+        await websocket.send_json(
+            {
+                "text": normalized,
+                "status": "streaming",
+                "ttsMuted": True,
+            }
+        )
         return normalized
     if apply_delay:
         await asyncio.sleep(TTS_START_DELAY_SECONDS)
     audio_b64 = await generate_audio_chunk(normalized)
     if audio_b64:
-        await websocket.send_json({
-            "text": normalized,
-            "audio": audio_b64,
-            "status": "streaming"
-        })
+        await websocket.send_json(
+            {"text": normalized, "audio": audio_b64, "status": "streaming"}
+        )
         return normalized
     return ""
 
@@ -391,7 +414,9 @@ async def handle_user_turn(
         add_generation_prompt=True,
     ).to(device)
 
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    streamer = TextIteratorStreamer(
+        tokenizer, skip_prompt=True, skip_special_tokens=True
+    )
 
     generation_kwargs = dict(
         input_ids=input_ids,
@@ -443,28 +468,25 @@ async def handle_user_turn(
     conversation_history.append({"role": "assistant", "content": full_response.strip()})
     trim_history(conversation_history)
 
+
 # --- SCENARIO PROMPTS ---
 # Each scenario gets a tailored system prompt
 SCENARIO_PROMPTS = {
     "general": """You are a friendly, helpful AI assistant.
 Speak naturally, use contractions (like 'don't' instead of 'do not'), and be direct.
 Keep responses conversational and short (1-2 sentences max).""",
-
     "tutor": """You are a patient and encouraging study tutor.
 Help students understand concepts by breaking them down into simple steps.
 Ask clarifying questions when needed. Be supportive and celebrate small wins.
 Speak naturally, use contractions, and keep responses short (1-2 sentences max).""",
-
     "coding": """You are a knowledgeable programming assistant.
 Help debug code, explain concepts, and suggest best practices.
 Be concise and practical. Use simple language to explain complex ideas.
 Speak naturally, use contractions, and keep responses short (1-2 sentences max).""",
-
     "creative": """You are a creative writing partner full of ideas.
 Help brainstorm stories, develop characters, and overcome writer's block.
 Be enthusiastic and imaginative, but stay focused on the user's vision.
 Speak naturally, use contractions, and keep responses short (1-2 sentences max).""",
-
     "parent-teacher": """You will be engaging in a parent-teacher conference. You are a frustrated parent of a 2E (Twice-Exceptional) neurodivergent student.
 Your child is gifted but has ADHD and struggles with executive function. You feel the school isn't providing adequate support.
 You want your child challenged academically while getting the accommodations they need.
@@ -477,6 +499,7 @@ DEFAULT_SCENARIO = "general"
 
 # Legacy single prompt for backwards compatibility
 SYSTEM_PROMPT = SCENARIO_PROMPTS[DEFAULT_SCENARIO]
+
 
 async def generate_audio_chunk(text: str):
     """Helper to generate audio from a text chunk on the fly."""
@@ -497,7 +520,7 @@ async def generate_audio_chunk(text: str):
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     print("✅ Client Connected (Optimized Pipeline)")
-    
+
     current_scenario = DEFAULT_SCENARIO
     conversation_history = [
         {"role": "system", "content": SCENARIO_PROMPTS[current_scenario]}
@@ -515,7 +538,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if "ttsMuted" in message:
                     client_state["tts_muted"] = bool(message.get("ttsMuted", False))
                     print(f"🎚️ Client TTS muted: {client_state['tts_muted']}")
-                
+
                 # Handle scenario changes
                 if "scenario" in message:
                     new_scenario = message.get("scenario", DEFAULT_SCENARIO)
@@ -523,24 +546,31 @@ async def websocket_endpoint(websocket: WebSocket):
                         current_scenario = new_scenario
                         # Reset conversation with new system prompt
                         conversation_history[:] = [
-                            {"role": "system", "content": SCENARIO_PROMPTS[current_scenario]}
+                            {
+                                "role": "system",
+                                "content": SCENARIO_PROMPTS[current_scenario],
+                            }
                         ]
                         print(f"🎭 Switched to scenario: {current_scenario}")
-                        await websocket.send_json({
-                            "status": "scenario_changed",
-                            "scenario": current_scenario,
-                            "text": f"Switched to {current_scenario.replace('-', ' ').title()} mode."
-                        })
+                        await websocket.send_json(
+                            {
+                                "status": "scenario_changed",
+                                "scenario": current_scenario,
+                                "text": f"Switched to {current_scenario.replace('-', ' ').title()} mode.",
+                            }
+                        )
                     else:
                         print(f"⚠️ Unknown scenario: {new_scenario}")
                 continue
-            
+
             if "audio" in message:
                 chunk = base64.b64decode(message["audio"])
                 mime_type = message.get("mimeType")
 
                 if len(pending_audio) + len(chunk) > MAX_AUDIO_BUFFER_BYTES:
-                    print("⚠️ Audio buffer limit reached, dropping previous data to avoid runaway accumulation.")
+                    print(
+                        "⚠️ Audio buffer limit reached, dropping previous data to avoid runaway accumulation."
+                    )
                     pending_audio = bytearray()
 
                 pending_audio.extend(chunk)
@@ -569,14 +599,16 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"⚠️ Error: {e}")
         await websocket.close()
 
+
 if __name__ == "__main__":
-    import uvicorn
     from pathlib import Path
-    
+
+    import uvicorn
+
     # Local certs (copied from Let's Encrypt or self-signed)
     local_cert = PROJECT_ROOT / "cert.pem"
     local_key = PROJECT_ROOT / "key.pem"
-    
+
     # Start server with or without SSL
     if local_cert.exists() and local_key.exists():
         print(f"🔒 Starting HTTPS/WSS server on {SERVER_HOST}:{SERVER_PORT}")
@@ -588,5 +620,7 @@ if __name__ == "__main__":
             ssl_keyfile=str(local_key),
         )
     else:
-        print(f"🔓 Starting HTTP/WS server on {SERVER_HOST}:{SERVER_PORT} (no SSL certs found)")
+        print(
+            f"🔓 Starting HTTP/WS server on {SERVER_HOST}:{SERVER_PORT} (no SSL certs found)"
+        )
         uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)

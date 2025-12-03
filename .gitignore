@@ -65,6 +65,10 @@ nohup.out
 # Jupyter
 .ipynb_checkpoints/
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Backup files
 *.bak
 *.backup
