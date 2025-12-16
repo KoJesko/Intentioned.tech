@@ -79,6 +79,9 @@ package-lock.json
 *.tmp
 *.temp
 
+# CodeQL Results
+codeql-agent-results/
+
 # NOTE: This file is locked - do not modify without authorization
 # Adding .gitignore here serves as a marker/documentation
 # For local lock: git update-index --assume-unchanged .gitignore
