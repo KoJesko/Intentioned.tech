@@ -63,24 +63,24 @@ async def serve_index():
 async def serve_static(filename: str):
     """
     Serve static files with path traversal protection.
-    
+
     Security: Validates that requested files are within PROJECT_ROOT to prevent
     directory traversal attacks (e.g., ../../etc/passwd).
     """
     requested_path = (PROJECT_ROOT / filename).resolve()
     fallback_response = FileResponse(PROJECT_ROOT / "index.html")
-    
+
     # Verify the resolved path is within the safe root directory
     try:
         requested_path.relative_to(PROJECT_ROOT)
     except ValueError:
         # Path is outside PROJECT_ROOT, return default page
         return fallback_response
-    
+
     # Ensure the path exists and is a file (not a directory)
     if not requested_path.is_file():
         return fallback_response
-    
+
     return FileResponse(requested_path)
 
 
@@ -213,13 +213,14 @@ def load_llm_stack(model_id: str):
 
         # Use BitsAndBytesConfig for 4-bit quantization (new recommended way)
         from transformers import BitsAndBytesConfig
+
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
         )
-        
+
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             device_map="auto",
@@ -434,7 +435,9 @@ async def handle_user_turn(
         audio_array, sampling_rate = decode_audio_payload(audio_payload, mime_type)
     except Exception as e:
         print(f"⚠️ Error: {e}")
-        await websocket.send_json({"status": "audio-error", "message": "Failed to decode audio"})
+        await websocket.send_json(
+            {"status": "audio-error", "message": "Failed to decode audio"}
+        )
         return
 
     stt_result = stt_pipe({"array": audio_array, "sampling_rate": sampling_rate})
