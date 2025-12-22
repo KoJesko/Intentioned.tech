@@ -782,7 +782,19 @@ function appendChat(role, text) {
     const msgDiv = document.createElement('div');
     const isAI = role === 'AI';
     msgDiv.className = `message ${isAI ? 'assistant' : 'user'}`;
-    msgDiv.innerHTML = `<div class="role">${role}</div>${text}`;
+
+    // Create role element safely
+    const roleDiv = document.createElement('div');
+    roleDiv.className = 'role';
+    roleDiv.textContent = role;
+
+    // Create text container safely to avoid XSS
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+
+    msgDiv.appendChild(roleDiv);
+    msgDiv.appendChild(textSpan);
+
     chatLog.appendChild(msgDiv);
     chatLog.scrollTop = chatLog.scrollHeight;
     
