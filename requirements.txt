@@ -1,23 +1,23 @@
 # Core Server
-fastapi
-uvicorn[standard]
-websockets
+fastapi>=0.128.0
+uvicorn[standard]>=0.34.0
+websockets>=15.0
 
 # Machine Learning / AI
-torch
-transformers
-accelerate
-bitsandbytes
-optimum
+torch>=2.7.0
+transformers>=4.52.0
+accelerate>=1.12.0
+bitsandbytes>=0.49.0
+optimum>=1.26.0
 
 # Audio Processing
-soundfile
-librosa
-scipy
-edge-tts
+soundfile>=0.13.1
+librosa>=0.11.0
+scipy>=1.16.0
+edge-tts>=7.2.7
 
 # Data & Utilities
-numpy
-sentencepiece
-huggingface-hub
-datasets
+numpy>=2.3.0
+sentencepiece>=0.2.0
+huggingface-hub>=0.32.0
+datasets>=4.4.0
