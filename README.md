@@ -160,31 +160,6 @@ sudo chown $USER:$USER *.pem
 └── README.md         # This file
 ```
 
-
-
-Intentioned.tech core
-
-├── server.py              # FastAPI backend (STT + LLM + TTS + Analysis)
-
-├── script.js              # Frontend WebSocket client| Endpoint | Type | Description |
-
-├── index.html             # Main UI|----------|------|-------------|
-
-├── privacy_policy.html    # Privacy policy (site-specific)| `GET /` | HTTP | Serves the web UI |
-
-├── terms_of_use.html      # Terms of use (site-specific)| `GET /{path}` | HTTP | Static file serving |
-
-├── code_of_conduct.html   # Code of conduct (universal)| `WS /ws/chat` | WebSocket | Real-time audio chat |
-
-├── requirements.txt       # Python dependencies
-
-├── cert.pem              # SSL certificate (not in repo)
-
-├── key.pem               # SSL private key (not in repo)
-
-└── README.md             # This file
-
-
 ## 📋 Policies & Documentation
 
 - **[Privacy Policy](privacy_policy.html)**: How data is collected and stored
@@ -196,12 +171,7 @@ Intentioned.tech core
 
 **Server → Client:**
 
-When content is flagged by the AI moderation system, logs are stored locally:{
-  "text": "AI response text",
-
-| Platform | Location |  "audio": "<base64-encoded-mp3>",
-
-|----------|----------|  "status": "streaming|complete"
+When content is flagged by the AI moderation system, logs are stored locally:
 
 | **Windows** | `%USERPROFILE%\Documents\simulation_safety_violations\` |}
 
