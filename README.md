@@ -61,7 +61,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 - **Self-Hosted**: All data stays on your machine
 
-- **Python 3.10+**
+- Python 3.10+
 
 ## 🖥️ Tech Stack
 
