@@ -220,7 +220,7 @@ Logs are JSON files containing timestamps, session IDs, and conversation transcr
 
 ### Environment Variables- **Connection Status**: Live server connection indicator
 
-- **Reconnect Button**: Manual reconnection option (Readding soon)
+- **Reconnect Button**: Manual reconnection option (Re-adding soon)
 
 | Variable | Default | Description |
 
