@@ -19,7 +19,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 - **Real-time Voice Interaction**: Speak naturally and get AI responses back in audio
 - **Edge TTS**: High-quality Microsoft Edge voice synthesis
 - **Multiple Training Scenarios**: General chat, Study tutor, Coding help, Creative writing, Parent-Teacher conferences
-- **Whisper STT Mode**: OpenAI's Whisper large-v3 for accurate speech recognition (disabled by default due to halluinations)
+- **Whisper STT Mode**: OpenAI's Whisper large-v3 for accurate speech recognition (disabled by default due to hallucinations)
 - **Two Mic Modes**: Push-to-Talk or Voice Activity Detection (VAD)
 - **Hermes LLM**: NousResearch Hermes-3-Llama-3.1-8B for intelligent responses
 - **Eye Contact Tracking**: Optional webcam-based eye contact analysis
