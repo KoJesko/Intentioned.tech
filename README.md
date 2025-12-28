@@ -91,8 +91,9 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
    python server.py
 
 ```
-- Python 3.10+ **Access the UI**
+- Python 3.10+
 
+**Access the UI**
 - NVIDIA GPU with CUDA support (recommended: 6GB+ VRAM)
 
 - Localhost access: `http://localhost:6942`
