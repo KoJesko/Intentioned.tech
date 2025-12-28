@@ -121,8 +121,8 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/KoJesko/Honors-Thesis-Conversational-AI-Training.git
-   cd Honors-Thesis-Conversational-AI-Training
+   git clone https://github.com/yourusername/TTS.git
+   cd TTS
    ```
 
 2. **Run the server** (auto-creates virtualenv and installs dependencies)
