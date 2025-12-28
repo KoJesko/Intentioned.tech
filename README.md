@@ -63,7 +63,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 - Python 3.10+
 
-## 🧩 System Requirements
+## System Requirements
 
 - NVIDIA GPU with CUDA support (recommended: 8GB+ VRAM)
 - Node.js (optional, for development)
@@ -86,7 +86,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 | Protocol | WebSocket (WS/WSS) |
 
-## 🚀 Quick Start
+## Quick Start
 ```bash
 
    python server.py
@@ -302,7 +302,7 @@ AGPL License - feel free to use and modify!
 }
 ```
 
-## 🎨 UI Features
+## UI Features
 
 - **Scenario Selection**: Choose training context with descriptions
 - **How to Use Guide**: Built-in instructions for new users
@@ -311,7 +311,7 @@ AGPL License - feel free to use and modify!
 - **Session Analysis**: Comprehensive performance report
 - **Connection Status**: Live server connection indicator
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "Connection Died" Error
 - Check if the server is running: `ss -tulpn | grep 6942` (Linux) or `netstat -an | findstr 6942` (Windows)
