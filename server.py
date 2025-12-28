@@ -27,6 +27,40 @@ if Path(sys.executable).resolve() != VENV_PYTHON.resolve():
     print(f"↻ Re-launching inside project venv: {VENV_DIR}")
     os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
 
+# --- Ensure ffmpeg is installed (required for audio processing) ---
+def _check_ffmpeg():
+    """Check if ffmpeg is available, install if missing on Windows."""
+    import shutil
+    if shutil.which("ffmpeg"):
+        return True
+    
+    if os.name == "nt":
+        print("🔧 ffmpeg not found. Installing via winget...")
+        try:
+            subprocess.run(
+                ["winget", "install", "--id", "BtbN.FFmpeg.GPL", "-e", 
+                 "--accept-package-agreements", "--accept-source-agreements"],
+                check=True
+            )
+            print("✅ ffmpeg installed. Please restart the server for PATH changes to take effect.")
+            sys.exit(0)
+        except subprocess.CalledProcessError:
+            print("⚠️ Failed to install ffmpeg via winget. Please install manually:")
+            print("   winget install --id BtbN.FFmpeg.GPL")
+            return False
+        except FileNotFoundError:
+            print("⚠️ winget not found. Please install ffmpeg manually:")
+            print("   https://ffmpeg.org/download.html")
+            return False
+    else:
+        print("⚠️ ffmpeg not found. Please install it:")
+        print("   Ubuntu/Debian: sudo apt install ffmpeg")
+        print("   macOS: brew install ffmpeg")
+        return False
+    return True
+
+_check_ffmpeg()
+
 import asyncio
 import base64
 import io
