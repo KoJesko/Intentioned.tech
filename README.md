@@ -121,8 +121,8 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/TTS.git
-   cd TTS
+   git clone https://github.com/KoJesko/intentioned.tech
+   cd ./intentioned.tech
    ```
 
 2. **Run the server** (auto-creates virtualenv and installs dependencies)
