@@ -1,4 +1,12 @@
-# Intentioned - Social Training Platform
+# Intentioned - Social Training Platform #
+
+Pace AI Research - Voice Assistant
+
+
+
+A self-hosted, open-source voice-powered AI assistant designed for social skills training. Practice conversations, improve communication skills, and receive real-time feedback.A real-time voice-powered AI assistant that uses Speech-to-Text (STT), a Large Language Model (LLM), and Text-to-Speech (TTS) to create a seamless conversational experience.
+
+
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/KoJesko/Honors-Thesis-Conversational-AI-Training)
@@ -42,7 +50,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 | Frontend | Vanilla HTML/CSS/JS |
 | Protocol | WebSocket (WS/WSS) |
 
-## 💻 Requirements
+## Requirements
 
 - **Python 3.10+**
 - **NVIDIA GPU with CUDA support** (recommended: 6GB+ VRAM)
@@ -66,25 +74,17 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 2. **Run the server** (auto-creates virtualenv and installs dependencies)
    ```bash
-   python server.py
-   ```
+   python server.py```
+
+## Project Structure
 
 3. **Access the UI**
    - Local: `http://localhost:6942`
    - With SSL: `https://localhost:6942`
 
-### SSL/HTTPS Setup
+## File Structure
 
-For secure connections (required for microphone access from non-localhost):
-
-**Generate self-signed certificate:**
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem \
-  -days 365 -nodes -subj "/CN=localhost"
-sudo chown $USER:$USER *.pem
-```
-
-## 📁 Project Structure
+Intentioned.tech core
 
 ```
 Intentioned/
@@ -100,13 +100,78 @@ Intentioned/
 └── README.md             # This file
 ```
 
-## 📋 Policies & Documentation
+## Policies & Documentation
 
-- **[Privacy Policy](privacy_policy.html)**: How data is collected and stored
-- **[Terms of Use](terms_of_use.html)**: Usage terms and conditions
-- **[Code of Conduct](code_of_conduct.html)**: Community standards and rules
+- **[Privacy Policy](privacy_policy.html)**: How data is collected and stored  "mimeType": "audio/webm"
 
-## 🔧 API Endpoints
+- **[Terms of Use](terms_of_use.html)**: Usage terms and conditions}
+
+- **[Code of Conduct](code_of_conduct.html)**: Community standards and rules```
+
+
+## Safety Violation Logs**Server → Client:**
+
+When content is flagged by the AI moderation system, logs are stored locally:{
+
+  "text": "AI response text",
+
+| Platform | Location |  "audio": "<base64-encoded-mp3>",
+
+|----------|----------|  "status": "streaming|complete"
+
+| **Windows** | `%USERPROFILE%\Documents\simulation_safety_violations\` |}
+
+| **macOS** | `~/Documents/simulation_safety_violations/` |```
+
+| **Linux** | `~/Documents/simulation_safety_violations/` |
+
+## UI Features
+
+Logs are JSON files containing timestamps, session IDs, and conversation transcripts.
+
+- **Scenario Selection**: Choose context for AI responses
+
+## Configuration- **Mic Mode Toggle**: Push-to-Talk vs Voice Activity Detection
+
+- **Audio Visualizer**: Real-time waveform display
+
+### Environment Variables- **Connection Status**: Live server connection indicator
+
+- **Reconnect Button**: Manual reconnection option (Readding soon)
+
+| Variable | Default | Description |
+
+|----------|---------|-------------|
+
+| `SERVER_HOST` | `0.0.0.0` | Bind address |
+
+| `SERVER_PORT` | `6942` | Server port |### "Connection Died" Error
+
+| `LLM_MODEL_ID` | `Qwen/Qwen2.5-3B-Instruct` | LLM model to use |- Check if the server is running: `ss -tulpn | grep 6942`
+
+| `HUGGING_FACE_HUB_TOKEN` | - | HuggingFace token (for gated models) |- Verify WebSocket URL matches the server port
+
+- For HTTPS, ensure certificates are valid
+
+### Running on Different Ports
+
+### GPU Out of Memory
+
+```bash- The LLM requires ~6-8GB VRAM (4-bit quantized)
+
+# Linux/macOS- Kill other GPU processes: `nvidia-smi` → find PIDs → `kill <pid>`
+
+SERVER_PORT=8080 python server.py
+
+### Mixed Content Errors
+
+# Windows- If serving HTTPS, the WebSocket must also use WSS
+
+set SERVER_PORT=8080 && python server.py- The client auto-detects protocol from `window.location.protocol`
+
+```
+
+## API Endpoints
 
 | Endpoint | Type | Description |
 |----------|------|-------------|
@@ -211,7 +276,7 @@ Logs are JSON files containing timestamps, session IDs, and conversation transcr
 - Allow camera permissions in browser
 - Check browser console for face-api.js loading errors
 
-## 📝 License
+## License
 
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
