@@ -128,7 +128,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
    ```bash
    python server.py```
 
-## 📁 Project Structure
+## Project Structure
 
 3. **Access the UI**
 
@@ -152,12 +152,12 @@ For secure connections (required for microphone access from non-localhost):
 **Generate self-signed certificate:**
 ├── key.pem           # SSL private key (not in repo)
 
-### GIT Files
+**Git Files**
 └── README.md         # This file
 
 
 
-Intentioned/## 🔧 API Endpoints
+Intentioned.tech core
 
 ├── server.py              # FastAPI backend (STT + LLM + TTS + Analysis)
 
@@ -180,7 +180,7 @@ Intentioned/## 🔧 API Endpoints
 └── README.md             # This file**Client → Server:**
 
 
-## 📋 Policies & Documentation
+## Policies & Documentation
 
 - **[Privacy Policy](privacy_policy.html)**: How data is collected and stored  "mimeType": "audio/webm"
 
@@ -205,13 +205,13 @@ When content is flagged by the AI moderation system, logs are stored locally:{
 
 | **Linux** | `~/Documents/simulation_safety_violations/` |
 
-## 🎨 UI Features
+## UI Features
 
 Logs are JSON files containing timestamps, session IDs, and conversation transcripts.
 
 - **Scenario Selection**: Choose context for AI responses
 
-## ⚙️ Configuration- **Mic Mode Toggle**: Push-to-Talk vs Voice Activity Detection
+## Configuration- **Mic Mode Toggle**: Push-to-Talk vs Voice Activity Detection
 
 - **Audio Visualizer**: Real-time waveform display
 
@@ -251,9 +251,7 @@ set SERVER_PORT=8080 && python server.py- The client auto-detects protocol from 
 
 ```
 
-## 📝 License
-
-## 🔧 API Endpoints
+## API Endpoints
 
 AGPL License - feel free to use and modify!
 
@@ -334,7 +332,7 @@ AGPL License - feel free to use and modify!
 - Allow camera permissions in browser
 - Check browser console for face-api.js loading errors
 
-## 📝 License
+## License
 
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
