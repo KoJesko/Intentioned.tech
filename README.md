@@ -1,4 +1,6 @@
-# 🎤 Intentioned - Social Training Platform# 🎤 Pace AI Research - Voice Assistant
+# 🎤 Intentioned - Social Training Platform 🎤 #
+
+Pace AI Research - Voice Assistant
 
 
 
@@ -32,7 +34,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 - **Filler Word Detection**: Track and reduce "um", "uh", "like", etc.| Component | Technology |
 
-- **Speaking Pace (WPM)**: Measure words per minute for optimal delivery|-----------|------------|
+- **Speaking Pace (WPM)**: Measure words per minute for optimal delivery
 
 - **Response Time Tracking**: Analyze how quickly you respond in conversations| Backend | FastAPI + Uvicorn |
 
@@ -44,7 +46,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 - **Microaggression Detection**: Learn to avoid unintentionally harmful phrases| Frontend | Vanilla HTML/CSS/JS |
 
-| Protocol | WebSocket (WS/WSS) |
+- **Protocol**: WebSocket (WS/WSS)
 
 ### Safety & Privacy
 
@@ -56,39 +58,24 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 - **Self-Hosted**: All data stays on your machine
 
-- Python 3.10+
+- **Python 3.10+**
 
 ## 🖥️ Tech Stack- NVIDIA GPU with CUDA support (recommended: 8GB+ VRAM)
 
 - Node.js (optional, for development)
 
-| Component | Technology |
+### Installation
 
-|-----------|------------|### Installation
+1. **Run the server** (auto-creates virtualenv and installs dependencies)
 
-| Backend | FastAPI + Uvicorn |
+## 🚀 Quick Start   
 
-| STT | Vosk (offline, non-AI) or OpenAI Whisper |1. **Clone the repository**
-
-| LLM | Qwen2.5-3B-Instruct (4-bit quantized) |   ```bash
-
-| TTS | Microsoft Edge TTS (en-US-AriaNeural) |   git clone https://github.com/yourusername/TTS.git
-
-| Eye Contact | face-api.js (vladmandic fork) |   cd TTS
-
-| Frontend | Vanilla HTML/CSS/JS |   ```
-
-| Protocol | WebSocket (WS/WSS) |
-
-2. **Run the server** (auto-creates virtualenv and installs dependencies)
-
-## 🚀 Quick Start   ```bash
+```bash
 
    python server.py
 
-### Prerequisites   ```
-
-
+```
+# Prerequisites  
 
 - Python 3.10+3. **Access the UI**
 
@@ -100,19 +87,18 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 ### Supported Platforms### SSL/HTTPS Setup
 
-
-
 | Platform | Status | Notes |For secure connections, place your certificates in the project root:
 
-|----------|--------|-------|- `cert.pem` - Certificate file (or fullchain)
+`cert.pem` - Certificate file (or fullchain)
 
-| **Linux** | ✅ Fully Supported | Ubuntu 20.04+, Debian 11+ |- `key.pem` - Private key file
+| **Linux** | ✅ Fully Supported | Ubuntu 20.04+, Debian 11+ | `key.pem` - Private key file
 
 | **Windows** | ✅ Fully Supported | Windows 10/11 |
 
-| **macOS** | ✅ Fully Supported | macOS 11+ (Big Sur) |**Using Let's Encrypt:**
+| **macOS** | ✅ Fully Supported | macOS 11+ (Big Sur) |
 
-```bash
+**Using Let's Encrypt:**
+
 
 ### Installationsudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ./cert.pem
 
