@@ -86,7 +86,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 | Protocol | WebSocket (WS/WSS) |
 
-## 🚀 Quick Start   
+## 🚀 Quick Start
 ```bash
 
    python server.py
