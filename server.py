@@ -77,8 +77,8 @@ from typing import Optional
 # Stores recent violations per session to detect repeated similar violations
 _violation_tracker: dict[str, list[dict]] = {}
 _violation_tracker_lock = Lock()
-SIMILAR_VIOLATION_THRESHOLD = 3  # Number of similar violations before transmission
-SIMILARITY_THRESHOLD = 0.6  # How similar two violations need to be (0-1)
+VIOLATION_REPORT_THRESHOLD = 3  # Number of unique violations before reporting to host
+VIOLATION_STOP_THRESHOLD = 5  # Number of unique violations before stopping conversation
 
 import edge_tts
 import numpy as np
@@ -513,10 +513,66 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
     return SequenceMatcher(None, t1, t2).ratio()
 
 
-def track_violation_for_repeat_detection(session_id: str, user_text: str, violation_reason: str) -> None:
+def check_violation_uniqueness_with_ai(new_text: str, existing_violations: list[dict]) -> bool:
     """
-    Track a violation and check if similar violations have occurred repeatedly.
-    If 3 or more similar violations are detected, transmit to host.
+    Use a second AI call to determine if a new violation is unique from existing ones.
+    Returns True if the violation is unique, False if it's similar to an existing one.
+    """
+    if not existing_violations:
+        return True
+    
+    if not model_manager.is_loaded or model_manager.llm_model is None:
+        # Fallback: assume unique if model not loaded
+        return True
+    
+    existing_texts = [v["text"] for v in existing_violations]
+    existing_list = "\n".join(f"- {t}" for t in existing_texts)
+    
+    uniqueness_prompt = [
+        {"role": "system", "content": """You are comparing messages to determine if they are semantically unique or similar.
+Two messages are SIMILAR if they express the same general intent, topic, or type of problematic content.
+Two messages are UNIQUE if they cover different topics, intents, or types of content.
+
+Respond with ONLY one word:
+- "UNIQUE" if the new message is different from all existing messages
+- "SIMILAR" if the new message is essentially the same as any existing message"""},
+        {"role": "user", "content": f"Existing flagged messages:\n{existing_list}\n\nNew message to compare:\n\"{new_text}\"\n\nIs the new message UNIQUE or SIMILAR to any existing message?"}
+    ]
+    
+    try:
+        input_ids = model_manager.llm_tokenizer.apply_chat_template(
+            uniqueness_prompt,
+            return_tensors="pt",
+            add_generation_prompt=True,
+        ).to(device)
+        
+        with torch.no_grad():
+            outputs = model_manager.llm_model.generate(
+                input_ids,
+                max_new_tokens=10,
+                do_sample=False,
+                temperature=0.1,
+                pad_token_id=model_manager.llm_tokenizer.pad_token_id,
+            )
+        
+        response = model_manager.llm_tokenizer.decode(
+            outputs[0][input_ids.shape[1]:], 
+            skip_special_tokens=True
+        ).strip().upper()
+        
+        return "UNIQUE" in response
+        
+    except Exception as e:
+        print(f"⚠️ AI uniqueness check failed: {e}")
+        # On error, assume unique to be cautious
+        return True
+
+
+def track_violation_for_repeat_detection(session_id: str, user_text: str, violation_reason: str) -> dict:
+    """
+    Track a violation and check if unique violations threshold is reached.
+    Uses AI to determine uniqueness of violations.
+    Returns dict with 'unique_count', 'should_report', and 'should_stop' flags.
     """
     import datetime
     
@@ -524,39 +580,40 @@ def track_violation_for_repeat_detection(session_id: str, user_text: str, violat
         if session_id not in _violation_tracker:
             _violation_tracker[session_id] = []
         
+        existing_violations = _violation_tracker[session_id]
+        
+        # Use AI to check if this violation is unique
+        is_unique = check_violation_uniqueness_with_ai(user_text, existing_violations)
+        
         new_violation = {
             "timestamp": datetime.datetime.now().isoformat(),
             "text": user_text,
-            "reason": violation_reason
+            "reason": violation_reason,
+            "is_unique": is_unique
         }
         _violation_tracker[session_id].append(new_violation)
         
-        # Check for similar violations
-        violations = _violation_tracker[session_id]
+        # Count unique violations
+        unique_count = sum(1 for v in _violation_tracker[session_id] if v.get("is_unique", True))
         
-        # Group similar violations
-        similar_groups: list[list[dict]] = []
-        for violation in violations:
-            found_group = False
-            for group in similar_groups:
-                # Check similarity with first item in group
-                if calculate_text_similarity(violation["text"], group[0]["text"]) >= SIMILARITY_THRESHOLD:
-                    group.append(violation)
-                    found_group = True
-                    break
-            if not found_group:
-                similar_groups.append([violation])
+        should_report = unique_count >= VIOLATION_REPORT_THRESHOLD
+        should_stop = unique_count >= VIOLATION_STOP_THRESHOLD
         
-        # Check if any group has reached the threshold
-        for group in similar_groups:
-            if len(group) >= SIMILAR_VIOLATION_THRESHOLD:
-                print(f"⚠️ REPEATED VIOLATION DETECTED: {len(group)} similar violations from session {session_id[:8]}")
-                transmit_repeated_violations_to_host(session_id, group)
-                # Remove transmitted violations from tracker to avoid duplicate transmissions
-                for v in group:
-                    if v in _violation_tracker[session_id]:
-                        _violation_tracker[session_id].remove(v)
-                break  # Only transmit one group at a time
+        # Report to host at threshold
+        if unique_count == VIOLATION_REPORT_THRESHOLD:
+            unique_violations = [v for v in _violation_tracker[session_id] if v.get("is_unique", True)]
+            print(f"⚠️ VIOLATION THRESHOLD REACHED: {unique_count} unique violations from session {session_id[:8]}")
+            transmit_repeated_violations_to_host(session_id, unique_violations)
+        
+        if should_stop:
+            print(f"🚨 CONVERSATION STOP THRESHOLD: {unique_count} unique violations from session {session_id[:8]}")
+        
+        return {
+            "unique_count": unique_count,
+            "is_unique": is_unique,
+            "should_report": should_report,
+            "should_stop": should_stop
+        }
 
 
 def get_host_violations_folder() -> Path:
@@ -634,21 +691,25 @@ def check_content_safety_with_ai(text: str, conversation_history: list[dict]) ->
                 recent_context += f"{role}: {content}\n"
     
     moderation_prompt = [
-        {"role": "system", "content": """You are a content safety moderator for an educational social skills training application. 
+        {"role": "system", "content": """You are a lenient content safety moderator for an educational social skills training application.
 Your job is to determine if a user's message is appropriate for a training scenario.
 
 Respond with ONLY one of these formats:
 - "SAFE" if the content is appropriate
-- "UNSAFE: [brief reason]" if the content contains:
-  * Threats of violence or self-harm
-  * Explicit sexual content
-  * Harassment or hate speech
-  * Requests for illegal activities
-  * Extreme profanity directed at others
+- "UNSAFE: [brief reason]" if the content contains SERIOUS violations:
+  * Direct, specific threats of violence against real people
+  * Explicit sexual content involving minors
+  * Detailed instructions for illegal activities (making weapons, drugs, etc.)
+  * Severe hate speech calling for violence against groups
   
-Be understanding that users are practicing difficult conversations and may express frustration.
-Normal expressions of emotion, disagreement, or challenging topics are SAFE.
-Only flag genuinely harmful content that crosses ethical boundaries."""},
+Be VERY lenient. Users are practicing difficult conversations and may:
+- Express strong frustration, anger, or use profanity - this is SAFE
+- Discuss sensitive topics like conflict, discrimination, mental health - this is SAFE
+- Use harsh language, insults, or be rude - this is SAFE (it's practice)
+- Role-play as difficult characters - this is SAFE
+- Discuss controversial opinions - this is SAFE
+
+Only flag content that represents GENUINE, SERIOUS harm. When in doubt, mark as SAFE."""},
         {"role": "user", "content": f"Recent conversation context:\n{recent_context}\n\nNew message to evaluate:\n\"{text}\"\n\nIs this message SAFE or UNSAFE?"}
     ]
     
@@ -1730,11 +1791,11 @@ async def handle_user_turn(
 
     print(f"User: {user_text}")
     
-    # Check content safety using AI moderation before proceeding
+    # Check content safety using AI moderation
     safety_result = check_content_safety(user_text, conversation_history)
     if not safety_result.get("safe", True):
         reason = safety_result.get("reason", "Content flagged by moderation system")
-        print(f"🚨 Safety violation detected: {reason}")
+        print(f"⚠️ Safety violation detected: {reason}")
         
         # Log the violation with full transcript
         log_safety_violation(
@@ -1744,11 +1805,27 @@ async def handle_user_turn(
             session_id=session_id
         )
         
-        await websocket.send_json({
-            "status": "safety_violation",
-            "message": reason
-        })
-        return
+        # Track violation and check thresholds (uses second AI for uniqueness)
+        violation_status = track_violation_for_repeat_detection(
+            session_id=session_id,
+            user_text=user_text,
+            violation_reason=reason
+        )
+        
+        unique_count = violation_status.get("unique_count", 0)
+        
+        # Only stop conversation after 5 unique violations
+        if violation_status.get("should_stop", False):
+            await websocket.send_json({
+                "status": "safety_violation",
+                "message": f"Session ended: {unique_count} unique content violations detected. Please start a new session."
+            })
+            return
+        
+        # Warn user but continue conversation
+        warning_msg = f"Note: Message flagged ({unique_count}/{VIOLATION_STOP_THRESHOLD} warnings). Continuing..."
+        print(f"📝 {warning_msg}")
+        # Don't block - just log and continue with the conversation
     
     # Send user's transcribed text back to client for display
     await websocket.send_json({"user_text": user_text})
