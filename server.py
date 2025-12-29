@@ -1219,83 +1219,86 @@ EDGE_TTS_VOLUME = os.getenv("EDGE_TTS_VOLUME", "+0%")
 EDGE_TTS_PITCH = os.getenv("EDGE_TTS_PITCH", "+0Hz")
 EDGE_TTS_ACTIVE_VOICE = _resolve_edge_voice(os.getenv("EDGE_TTS_VOICE"))
 
-# --- Bark TTS (Ultra-natural neural TTS from Suno AI) ---
-# Bark produces the most natural-sounding speech with emotion and intonation
-# Set USE_BARK_TTS=true for best quality (requires ~4GB VRAM)
-USE_BARK_TTS = os.getenv("USE_BARK_TTS", "true").lower() in {"1", "true", "yes"}
-# Bark voice presets - see https://suno-ai.notion.site/8b8e8749ed514b0cbf3f699013548683
-# Options: "v2/en_speaker_0" through "v2/en_speaker_9" for different voices
-BARK_VOICE_PRESET = os.getenv("BARK_VOICE_PRESET", "v2/en_speaker_6")  # Clear female voice
+# --- SpeechT5 TTS (Fast, clear neural TTS from Microsoft) ---
+# SpeechT5 is fast to load (~400MB) and produces clear speech
+# Set USE_NEURAL_TTS=true for quality neural TTS (requires ~1GB VRAM)
+USE_NEURAL_TTS = os.getenv("USE_NEURAL_TTS", "true").lower() in {"1", "true", "yes"}
 
-# Bark TTS models (loaded lazily)
-_bark_processor = None
-_bark_model = None
-_bark_lock = Lock()
+# SpeechT5 models (loaded lazily)
+_speecht5_processor = None
+_speecht5_model = None
+_speecht5_vocoder = None
+_speecht5_embeddings = None
+_speecht5_lock = Lock()
 
 
-def get_bark_tts():
-    """Get or initialize Bark TTS models (lazy loading)."""
-    global _bark_processor, _bark_model
+def get_speecht5_tts():
+    """Get or initialize SpeechT5 TTS models (lazy loading)."""
+    global _speecht5_processor, _speecht5_model, _speecht5_vocoder, _speecht5_embeddings
     
-    if not USE_BARK_TTS:
-        return None, None
+    if not USE_NEURAL_TTS:
+        return None, None, None, None
     
-    with _bark_lock:
-        if _bark_model is None:
+    with _speecht5_lock:
+        if _speecht5_model is None:
             try:
-                from transformers import AutoProcessor, BarkModel
-                print(f"[TTS] Loading Bark TTS (ultra-natural voice synthesis)...")
+                from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
+                from datasets import load_dataset
+                print("[TTS] Loading SpeechT5 (fast neural voice synthesis)...")
                 
-                # Load processor and model
-                _bark_processor = AutoProcessor.from_pretrained("suno/bark-small")
-                _bark_model = BarkModel.from_pretrained(
-                    "suno/bark-small",
-                    torch_dtype=torch_dtype,
-                ).to(device)
-                _bark_model.eval()
+                # Load processor, model, and vocoder
+                _speecht5_processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
+                _speecht5_model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts").to(device)
+                _speecht5_vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan").to(device)
                 
-                print(f"[TTS] Bark TTS loaded successfully (voice: {BARK_VOICE_PRESET})")
+                # Load speaker embeddings (use a female voice)
+                embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+                _speecht5_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0).to(device)
+                
+                _speecht5_model.eval()
+                _speecht5_vocoder.eval()
+                
+                print("[TTS] SpeechT5 loaded successfully")
             except ImportError as e:
-                print(f"[TTS] Bark TTS import failed: {e}")
-                return None, None
+                print(f"[TTS] SpeechT5 import failed: {e}")
+                return None, None, None, None
             except Exception as e:
-                print(f"[TTS] Failed to load Bark TTS: {e}")
-                return None, None
+                print(f"[TTS] Failed to load SpeechT5: {e}")
+                return None, None, None, None
         
-        return _bark_processor, _bark_model
+        return _speecht5_processor, _speecht5_model, _speecht5_vocoder, _speecht5_embeddings
 
 
-def synthesize_with_bark_tts(text: str) -> bytes | None:
-    """Synthesize speech using Bark TTS (ultra-natural neural TTS)."""
+def synthesize_with_neural_tts(text: str) -> bytes | None:
+    """Synthesize speech using SpeechT5 (fast, clear neural TTS)."""
     if not text.strip():
         return None
     
-    processor, model = get_bark_tts()
+    processor, model, vocoder, speaker_embeddings = get_speecht5_tts()
     if processor is None or model is None:
         return None
     
     try:
-        # Prepare inputs
-        inputs = processor(text, voice_preset=BARK_VOICE_PRESET, return_tensors="pt")
-        inputs = {k: v.to(device) for k, v in inputs.items()}
+        # Process text
+        inputs = processor(text=text, return_tensors="pt").to(device)
         
         # Generate speech
         with torch.no_grad():
-            audio_array = model.generate(**inputs)
+            speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
         
-        # Convert to numpy float32 (soundfile requires float32, not float16)
-        audio_array = audio_array.cpu().float().numpy().squeeze()
+        # Convert to numpy float32
+        audio_array = speech.cpu().float().numpy()
         
-        # Save to temporary WAV file
-        sample_rate = model.generation_config.sample_rate
+        # SpeechT5 outputs at 16kHz
+        sample_rate = 16000
         
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
             tmp_path = tmp_file.name
         
-        # Write WAV file (ensure float32)
+        # Write WAV file
         sf.write(tmp_path, audio_array.astype(np.float32), sample_rate)
         
-        # Read and convert
+        # Read audio bytes
         with open(tmp_path, 'rb') as f:
             audio_bytes = f.read()
         
@@ -1310,7 +1313,7 @@ def synthesize_with_bark_tts(text: str) -> bytes | None:
         return wav_bytes
         
     except Exception as e:
-        print(f"[TTS] Bark TTS synthesis failed: {e}")
+        print(f"[TTS] SpeechT5 synthesis failed: {e}")
         return None
 
 # --- pyttsx3 (offline) TTS Configuration ---
@@ -1721,14 +1724,14 @@ else:
     print(f"🎤 STT Engine: Wav2Vec2 (CTC-based, zero hallucination)")
 
 # TTS Engine info
-if USE_BARK_TTS:
-    print(f"🎵 TTS Engine: Bark (ultra-natural) - Voice: {BARK_VOICE_PRESET}")
+if USE_NEURAL_TTS:
+    print("[TTS] TTS Engine: SpeechT5 (fast neural voice)")
 elif USE_PYTTSX3:
-    print(f"🎙️ TTS Engine: pyttsx3 (offline) - Rate: {PYTTSX3_RATE} WPM")
+    print(f"[TTS] TTS Engine: pyttsx3 (offline) - Rate: {PYTTSX3_RATE} WPM")
 else:
-    print(f"🎙️ TTS Engine: Edge TTS (natural) - Voice: {EDGE_TTS_ACTIVE_VOICE}")
-print(f"📊 Server configured for up to {MAX_CONCURRENT_SESSIONS} concurrent sessions")
-print("⏳ Models will be loaded on first client connection...")
+    print(f"[TTS] TTS Engine: Edge TTS (natural) - Voice: {EDGE_TTS_ACTIVE_VOICE}")
+print(f"[Server] Configured for up to {MAX_CONCURRENT_SESSIONS} concurrent sessions")
+print("[Server] Models will be loaded on first client connection...")
 
 
 def convert_audio_to_wav(
@@ -2157,13 +2160,13 @@ async def generate_audio_chunk(text: str):
     if not normalized:
         return None
 
-    # Priority: Bark TTS (best quality) > Edge TTS (good quality) > pyttsx3 (offline)
-    if USE_BARK_TTS:
-        wav_bytes = await asyncio.to_thread(synthesize_with_bark_tts, normalized)
+    # Priority: SpeechT5 (fast + clear) > Edge TTS (good quality) > pyttsx3 (offline)
+    if USE_NEURAL_TTS:
+        wav_bytes = await asyncio.to_thread(synthesize_with_neural_tts, normalized)
         if wav_bytes:
             return base64.b64encode(wav_bytes).decode("utf-8")
-        # Fallback to Edge TTS if Bark fails
-        print("⚠️ Bark TTS failed, falling back to Edge TTS")
+        # Fallback to Edge TTS if SpeechT5 fails
+        print("[TTS] SpeechT5 failed, falling back to Edge TTS")
     
     if not USE_PYTTSX3:
         wav_bytes = await synthesize_with_edge_tts(normalized)
