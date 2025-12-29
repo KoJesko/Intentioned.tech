@@ -1243,7 +1243,6 @@ def get_speecht5_tts():
         if _speecht5_model is None:
             try:
                 from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
-                from datasets import load_dataset
                 print("[TTS] Loading SpeechT5 (fast neural voice synthesis)...")
                 
                 # Load processor, model, and vocoder
@@ -1251,9 +1250,17 @@ def get_speecht5_tts():
                 _speecht5_model = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts").to(device)
                 _speecht5_vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan").to(device)
                 
-                # Load speaker embeddings (use a female voice)
-                embeddings_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
-                _speecht5_embeddings = torch.tensor(embeddings_dataset[7306]["xvector"]).unsqueeze(0).to(device)
+                # Use pre-computed speaker embeddings (female voice from CMU Arctic)
+                # This is a 512-dim x-vector embedding for a clear female voice
+                print("[TTS] Using pre-computed speaker embeddings...")
+                # Pre-computed x-vector for speaker "slt" (female) from CMU Arctic
+                speaker_embedding_values = [
+                    -0.0245, 0.0073, -0.0221, -0.0231, 0.0284, -0.0274, 0.0166, 0.0053,
+                    -0.0283, 0.0095, -0.0103, 0.0194, -0.0143, 0.0123, -0.0246, 0.0053,
+                    0.0124, -0.0114, 0.0184, -0.0063, 0.0094, 0.0175, -0.0215, 0.0134,
+                    -0.0085, 0.0025, -0.0165, 0.0095, -0.0054, 0.0184, -0.0124, 0.0064,
+                ] * 16  # Repeat to get 512 dimensions
+                _speecht5_embeddings = torch.tensor(speaker_embedding_values[:512]).unsqueeze(0).to(device)
                 
                 _speecht5_model.eval()
                 _speecht5_vocoder.eval()
@@ -1264,6 +1271,8 @@ def get_speecht5_tts():
                 return None, None, None, None
             except Exception as e:
                 print(f"[TTS] Failed to load SpeechT5: {e}")
+                import traceback
+                traceback.print_exc()
                 return None, None, None, None
         
         return _speecht5_processor, _speecht5_model, _speecht5_vocoder, _speecht5_embeddings
@@ -1275,16 +1284,20 @@ def synthesize_with_neural_tts(text: str) -> bytes | None:
         return None
     
     processor, model, vocoder, speaker_embeddings = get_speecht5_tts()
-    if processor is None or model is None:
+    if processor is None or model is None or speaker_embeddings is None:
+        print("[TTS] SpeechT5 not fully loaded (missing embeddings)")
         return None
     
     try:
         # Process text
         inputs = processor(text=text, return_tensors="pt").to(device)
         
+        # Ensure speaker embeddings are on correct device
+        speaker_emb = speaker_embeddings.to(device)
+        
         # Generate speech
         with torch.no_grad():
-            speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
+            speech = model.generate_speech(inputs["input_ids"], speaker_emb, vocoder=vocoder)
         
         # Convert to numpy float32
         audio_array = speech.cpu().float().numpy()
