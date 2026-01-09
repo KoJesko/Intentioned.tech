@@ -240,7 +240,7 @@ Logs are JSON files containing timestamps, session IDs, and conversation transcr
 - Kill other GPU processes: `nvidia-smi` → find PIDs → `kill <pid>`
 
 ### NeMo/Parakeet Issues
-- Requires Python 3.13+ (not 3.14 - spacy compatibility)
+- Requires Python 3.12+ (not 3.13-3.14 - spacy compatibility)
 - If NeMo fails to load, falls back to Wav2Vec2
 - Check CUDA version matches PyTorch build
 
