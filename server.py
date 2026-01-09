@@ -790,7 +790,9 @@ async def import_result(file: UploadFile = File(...)):
 
         return {"status": "ok", "filename": filename}
     except Exception as e:
-        return {"error": f"Failed to import CSV: {str(e)}"}
+        # Log the actual error server-side for debugging, but don't expose to user
+        print(f"[Results] CSV import failed: {e}")
+        return {"error": "Failed to import CSV. Please ensure the file is a valid CSV format."}
 
 
 # API Endpoint to export a specific session result as CSV
