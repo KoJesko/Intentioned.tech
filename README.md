@@ -3,7 +3,7 @@
 A self-hosted, open-source voice-powered AI assistant designed for social skills training. Practice conversations, improve communication skills, and receive real-time AI feedback.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Python 3.13+](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/KoJesko/intentioned.tech)
 
 ## ✨ Features
@@ -44,7 +44,7 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
 
 ## 📋 System Requirements
 
-- **Python**: 3.13+ (required for NeMo toolkit compatibility)
+- **Python**: 3.12+ (required for NeMo toolkit compatibility)
 - **GPU**: NVIDIA GPU with CUDA 12.x support (recommended: 8GB+ VRAM)
 - **VRAM Usage**: ~4-6GB for LLM + ~2GB for STT/TTS models
 - **Webcam**: Optional, for eye contact tracking
@@ -67,22 +67,22 @@ A self-hosted, open-source voice-powered AI assistant designed for social skills
    cd intentioned.tech
    ```
 
-2. **Create Python 3.13 environment**
+2. **Create Python 3.12 environment**
    ```bash
    # Using uv (recommended - faster)
-   uv venv myenv313 --python 3.13
+   uv venv myenv --python 3.12
    
    # Or using standard venv
-   python3.13 -m venv myenv313
+   python3.12 -m venv myenv
    ```
 
 3. **Activate the environment**
    ```bash
    # Windows
-   myenv313\Scripts\activate
+   myenv\Scripts\activate
    
    # Linux/macOS
-   source myenv313/bin/activate
+   source myenv/bin/activate
    ```
 
 4. **Install dependencies**
