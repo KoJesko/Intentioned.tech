@@ -378,6 +378,38 @@ async def get_version():
 RESULTS_DIR = PROJECT_ROOT / "session_results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
+
+def _secure_path_within(base_dir: Path, filename: str) -> Path | None:
+    """
+    Securely resolve a filename to a path within base_dir.
+    
+    Returns the resolved path if it is safely contained within base_dir,
+    or None if the path would escape (path traversal attack prevention).
+    
+    This function:
+    1. Extracts just the filename (strips directory components)
+    2. Resolves the full path to handle symlinks
+    3. Verifies the resolved path is within the base directory
+    """
+    # Extract just the filename, stripping any directory components
+    safe_filename = Path(filename).name
+    if not safe_filename:
+        return None
+    
+    # Build and resolve the candidate path
+    candidate = (base_dir / safe_filename).resolve()
+    base_resolved = base_dir.resolve()
+    
+    # Verify containment - the resolved path must be inside base_dir
+    try:
+        candidate.relative_to(base_resolved)
+    except ValueError:
+        # Path escapes the base directory (e.g., via symlink)
+        return None
+    
+    return candidate
+
+
 # CSV columns for session results
 CSV_COLUMNS = [
     "timestamp",
@@ -652,14 +684,13 @@ def load_session_result(filename: str) -> dict | None:
     import csv
 
     # Security: ensure filename is safe (no path traversal)
-    # Filled in by AI to prevent common vulnerabilities
-    # Utilized GitHub Security best practices for file handling
     safe_filename = Path(filename).name
     if not safe_filename.endswith(".csv") or not safe_filename.startswith("session_"):
         return None
 
-    filepath = RESULTS_DIR / safe_filename
-    if not filepath.exists():
+    # Use secure path resolution to prevent path traversal attacks
+    filepath = _secure_path_within(RESULTS_DIR, safe_filename)
+    if filepath is None or not filepath.exists():
         return None
 
     try:
@@ -685,8 +716,9 @@ def delete_session_result(filename: str) -> bool:
     if not safe_filename.endswith(".csv") or not safe_filename.startswith("session_"):
         return False
 
-    filepath = RESULTS_DIR / safe_filename
-    if filepath.exists():
+    # Use secure path resolution to prevent path traversal attacks
+    filepath = _secure_path_within(RESULTS_DIR, safe_filename)
+    if filepath is not None and filepath.exists():
         filepath.unlink()
         return True
     return False
@@ -773,29 +805,9 @@ async def export_result(filename: str):
     if not safe_filename.endswith(".csv") or not safe_filename.startswith("session_"):
         return {"error": "Invalid filename"}
 
-    filepath = RESULTS_DIR / safe_filename
-    # Ensure the requested file is an existing session result within RESULTS_DIR
-    base_dir = RESULTS_DIR.resolve()
-    resolved_path = filepath.resolve()
-
-    # Check directory containment before exists() to prevent TOCTOU issues
-    # Use is_relative_to when available (Python 3.9+); otherwise, fall back to relative_to
-    # Note: relative_to raises ValueError when path is outside base_dir or cannot be made relative
-    is_inside_results = False
-    if sys.version_info >= (3, 9):
-        is_inside_results = resolved_path.is_relative_to(base_dir)
-    else:
-        try:
-            resolved_path.relative_to(base_dir)
-            is_inside_results = True
-        except ValueError:
-            is_inside_results = False
-
-    if not is_inside_results:
-        return {"error": "Result not found"}
-
-    # Check that the resolved path exists
-    if not resolved_path.exists():
+    # Use secure path resolution to prevent path traversal attacks
+    resolved_path = _secure_path_within(RESULTS_DIR, safe_filename)
+    if resolved_path is None or not resolved_path.exists():
         return {"error": "Result not found"}
 
     return FileResponse(
@@ -2557,9 +2569,7 @@ def synthesize_with_neural_tts(text: str) -> bytes | None:
                     max_new_tokens=None,
                     cfg_scale=3.0,  # Classifier-free guidance scale
                     tokenizer=processor.tokenizer,
-                    generation_config={
-                        "do_sample": False
-                    },  # pyright: ignore[reportArgumentType]
+                    generation_config={"do_sample": False},  # pyright: ignore[reportArgumentType]
                     verbose=False,
                     all_prefilled_outputs=copy.deepcopy(voice_preset),
                 )
@@ -2894,9 +2904,7 @@ class ModelManager:
 
         if vosk_path.exists():
             print(f"Loading STT: Vosk (non-AI) from {vosk_path}...")
-            self.vosk_model = VoskModel(
-                str(vosk_path)
-            )  # pyright: ignore[reportPossiblyUnboundVariable]
+            self.vosk_model = VoskModel(str(vosk_path))  # pyright: ignore[reportPossiblyUnboundVariable]
             print("✅ Vosk model loaded (non-AI STT)")
         else:
             print("⚠️ Vosk model download failed, falling back to Whisper")
@@ -3960,21 +3968,39 @@ async def serve_index():
 @app.get("/{filename:path}")
 async def serve_static(filename: str):
     """Serve static files (JS, CSS, etc.) or fall back to index.html for SPA routing."""
+    # Pre-resolve index.html path once for fallback (safe, hardcoded filename)
+    index_path = (PROJECT_ROOT / "index.html").resolve()
+    project_root_resolved = PROJECT_ROOT.resolve()
+    
+    # Verify index.html is within PROJECT_ROOT (defensive check)
+    try:
+        index_path.relative_to(project_root_resolved)
+    except ValueError:
+        # This should never happen, but handle gracefully
+        raise RuntimeError("index.html is not within PROJECT_ROOT")
+    
+    def _make_index_response() -> FileResponse:
+        response = FileResponse(index_path)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+    
     # Securely resolve the requested path
     try:
         # Ensure the provided filename is treated as a relative path segment
         # Strip any leading path separators so we never interpret it as absolute
         safe_filename = filename.lstrip("/\\")
+        if not safe_filename:
+            return _make_index_response()
+        
         candidate_path = (PROJECT_ROOT / safe_filename).resolve()
         # Only allow serving files that reside inside PROJECT_ROOT
         try:
             # Use Path.relative_to on resolved paths to enforce containment
-            candidate_path.relative_to(PROJECT_ROOT)
+            candidate_path.relative_to(project_root_resolved)
         except ValueError:
             # Path is outside PROJECT_ROOT; fall back to index.html
-            response = FileResponse(PROJECT_ROOT / "index.html")
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            return response
+            return _make_index_response()
+        
         if candidate_path.exists() and candidate_path.is_file():
             response = FileResponse(candidate_path)
             # No cache for HTML/JS files to ensure latest version
@@ -3988,9 +4014,7 @@ async def serve_static(filename: str):
     except Exception:
         # Any error (invalid path, permission, etc) falls back
         pass
-    response = FileResponse(PROJECT_ROOT / "index.html")
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    return response
+    return _make_index_response()
 
 
 if __name__ == "__main__":
