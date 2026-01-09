@@ -710,12 +710,15 @@ async def export_result(filename: str):
     """Export a session result as downloadable CSV."""
     from fastapi.responses import FileResponse
 
+    # Normalize to a basename to drop any directory components
     safe_filename = Path(filename).name
+    # Enforce expected naming pattern for session CSVs
     if not safe_filename.endswith(".csv") or not safe_filename.startswith("session_"):
         return {"error": "Invalid filename"}
 
     filepath = RESULTS_DIR / safe_filename
-    if not filepath.exists():
+    # Ensure the requested file is an existing session result within RESULTS_DIR
+    if not filepath.exists() or filepath.resolve().parent != RESULTS_DIR.resolve():
         return {"error": "Result not found"}
 
     return FileResponse(
