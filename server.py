@@ -2193,7 +2193,9 @@ STT_STRIDE_LENGTH_S = (6, 3)
 # STT: Vosk (non-AI, traditional acoustic models) or Whisper as fallback
 # LLM: Qwen2.5-3B-Instruct (~2GB in 4-bit) - reliable and well-supported
 LLM_DEFAULT_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
-LLM_MODEL_ID = os.getenv("LLM_MODEL_ID", LLM_DEFAULT_MODEL_ID)
+# Load from config.json first, then environment variable, then default
+_models_cfg = _CONFIG.get("models", {})
+LLM_MODEL_ID = _models_cfg.get("llm_model_id") or os.getenv("LLM_MODEL_ID", LLM_DEFAULT_MODEL_ID)
 HUGGINGFACE_TOKEN = os.getenv("HUGGING_FACE_HUB_TOKEN")
 
 # STT Configuration
@@ -2208,8 +2210,9 @@ VOSK_MODEL_PATH = os.getenv(
 # Unlike Whisper, Wav2Vec2 directly maps audio frames to text - no "making up" words
 STT_DEFAULT_MODEL_ID = "facebook/wav2vec2-large-960h-lv60-self"  # ~1.2GB, very accurate
 
-LLM_MAX_NEW_TOKENS = 150  # Reduced for faster responses with smaller model
-LLM_TEMPERATURE = 0.65
+# LLM settings - load from config.json
+LLM_MAX_NEW_TOKENS = _models_cfg.get("llm_max_tokens", 150)  # Reduced for faster responses with smaller model
+LLM_TEMPERATURE = _models_cfg.get("llm_temperature", 0.65)
 LLM_TOP_P = 0.9
 LLM_REPETITION_PENALTY = 1.05
 

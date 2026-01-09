@@ -13,7 +13,7 @@
     "vibevoice_voice": "en-Grace_woman",
     "edge_tts_voice": "female_us",
     "stt_engine": "parakeet",
-    "llm_model_id": "unsloth/gemma-3-1b-it-GGUF",
+    "llm_model_id": "google/gemma-3-1b-it",
     "llm_max_tokens": 72,
     "llm_temperature": 0.7
   },

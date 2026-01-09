@@ -345,7 +345,7 @@ class ConfigTool:
             "meta-llama/Llama-3.2-3B-Instruct",
             "meta-llama/Llama-3.2-1B-Instruct",
             "google/gemma-2-2b-it",
-            "unsloth/gemma-3-1b-it-GGUF",
+            "google/gemma-3-1b-it",
             "mistralai/Mistral-7B-Instruct-v0.3",
             "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         ])
