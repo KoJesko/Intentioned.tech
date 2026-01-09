@@ -160,6 +160,26 @@ DEFAULT_CONFIG = {
             "system_prompt": "IMPORTANT: You are playing the role of an INTERN in a weekly check-in meeting with your supervisor. The USER is the SUPERVISOR. You've been at the internship for a few weeks and are working on a data analysis project. Share your progress, mention one challenge you're facing, and ask about learning opportunities. Be eager to learn but also honest about what's confusing. Never break character - you are the INTERN. Speak naturally, use contractions, and keep responses conversational and short (1-2 sentences max). NEVER USE EMOJIS. THE USER IS LISTENING IN AUDIO FORM."
         }
     ],
+    "scenario_categories": [
+        {
+            "id": "general-talks",
+            "name": "General Talks",
+            "icon": "💬",
+            "expanded": True
+        },
+        {
+            "id": "parent-teacher",
+            "name": "Parent-Teacher Conferences",
+            "icon": "👨‍👩‍👧",
+            "expanded": False
+        },
+        {
+            "id": "career-services",
+            "name": "Career Services",
+            "icon": "💼",
+            "expanded": False
+        }
+    ],
     "moderation": {
         "enabled": True,
         "system_prompt": """You are a VERY lenient content safety moderator for an educational social skills training application.
@@ -469,22 +489,34 @@ class ConfigTool:
         self.edge_voice.grid(row=6, column=1, sticky=tk.W, pady=5)
     
     def create_scenarios_tab(self):
-        """Create scenarios management tab."""
+        """Create scenarios management tab with categories."""
         frame = ttk.Frame(self.notebook, padding=20)
         self.notebook.add(frame, text="🎭 Scenarios")
         
+        # Create a notebook for Scenarios and Categories sub-tabs
+        scenarios_notebook = ttk.Notebook(frame)
+        scenarios_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # === Scenarios Sub-Tab ===
+        scenarios_frame = ttk.Frame(scenarios_notebook, padding=10)
+        scenarios_notebook.add(scenarios_frame, text="📝 Scenarios")
+        
         # Left side - scenario list
-        left_frame = ttk.Frame(frame)
+        left_frame = ttk.Frame(scenarios_frame)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
         
         ttk.Label(left_frame, text="Scenarios:").pack(anchor=tk.W)
         
-        self.scenario_listbox = tk.Listbox(left_frame, width=30, height=15)
+        self.scenario_listbox = tk.Listbox(left_frame, width=35, height=15)
         self.scenario_listbox.pack(fill=tk.Y, expand=True)
         self.scenario_listbox.bind('<<ListboxSelect>>', self.on_scenario_select)
         
         for scenario in self.config["scenarios"]:
-            self.scenario_listbox.insert(tk.END, f"{scenario['icon']} {scenario['name']}")
+            cat_name = self._get_category_name(scenario.get("category", ""))
+            display = f"{scenario['icon']} {scenario['name']}"
+            if cat_name:
+                display += f" [{cat_name}]"
+            self.scenario_listbox.insert(tk.END, display)
         
         btn_frame = ttk.Frame(left_frame)
         btn_frame.pack(fill=tk.X, pady=5)
@@ -494,30 +526,91 @@ class ConfigTool:
         ttk.Button(btn_frame, text="⬇️", command=lambda: self.move_scenario(1)).pack(side=tk.LEFT, padx=2)
         
         # Right side - scenario editor
-        right_frame = ttk.Frame(frame)
+        right_frame = ttk.Frame(scenarios_frame)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        ttk.Label(right_frame, text="Scenario ID:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        row = 0
+        ttk.Label(right_frame, text="Scenario ID:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self.scenario_id = ttk.Entry(right_frame, width=40)
-        self.scenario_id.grid(row=0, column=1, sticky=tk.W, pady=2)
+        self.scenario_id.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
         
-        ttk.Label(right_frame, text="Name:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Label(right_frame, text="Name:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self.scenario_name = ttk.Entry(right_frame, width=40)
-        self.scenario_name.grid(row=1, column=1, sticky=tk.W, pady=2)
+        self.scenario_name.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
         
-        ttk.Label(right_frame, text="Icon (emoji):").grid(row=2, column=0, sticky=tk.W, pady=2)
+        ttk.Label(right_frame, text="Icon (emoji):").grid(row=row, column=0, sticky=tk.W, pady=2)
         self.scenario_icon = ttk.Entry(right_frame, width=10)
-        self.scenario_icon.grid(row=2, column=1, sticky=tk.W, pady=2)
+        self.scenario_icon.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
         
-        ttk.Label(right_frame, text="Description:").grid(row=3, column=0, sticky=tk.NW, pady=2)
+        ttk.Label(right_frame, text="Category:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.scenario_category = ttk.Combobox(right_frame, width=37)
+        self._update_category_dropdown()
+        self.scenario_category.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(right_frame, text="User Role:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.scenario_user_role = ttk.Entry(right_frame, width=20)
+        self.scenario_user_role.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(right_frame, text="Description:").grid(row=row, column=0, sticky=tk.NW, pady=2)
         self.scenario_desc = scrolledtext.ScrolledText(right_frame, width=50, height=3)
-        self.scenario_desc.grid(row=3, column=1, sticky=tk.W, pady=2)
+        self.scenario_desc.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
         
-        ttk.Label(right_frame, text="System Prompt:").grid(row=4, column=0, sticky=tk.NW, pady=2)
-        self.scenario_prompt = scrolledtext.ScrolledText(right_frame, width=50, height=8)
-        self.scenario_prompt.grid(row=4, column=1, sticky=tk.W, pady=2)
+        ttk.Label(right_frame, text="System Prompt:").grid(row=row, column=0, sticky=tk.NW, pady=2)
+        self.scenario_prompt = scrolledtext.ScrolledText(right_frame, width=50, height=6)
+        self.scenario_prompt.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
         
-        ttk.Button(right_frame, text="💾 Update Scenario", command=self.update_scenario).grid(row=5, column=1, sticky=tk.W, pady=10)
+        ttk.Button(right_frame, text="💾 Update Scenario", command=self.update_scenario).grid(row=row, column=1, sticky=tk.W, pady=10)
+        
+        # === Categories Sub-Tab ===
+        categories_frame = ttk.Frame(scenarios_notebook, padding=10)
+        scenarios_notebook.add(categories_frame, text="📁 Categories")
+        
+        # Left side - category list
+        cat_left_frame = ttk.Frame(categories_frame)
+        cat_left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        
+        ttk.Label(cat_left_frame, text="Categories:").pack(anchor=tk.W)
+        
+        self.category_listbox = tk.Listbox(cat_left_frame, width=30, height=12)
+        self.category_listbox.pack(fill=tk.Y, expand=True)
+        self.category_listbox.bind('<<ListboxSelect>>', self.on_category_select)
+        
+        self._refresh_category_listbox()
+        
+        cat_btn_frame = ttk.Frame(cat_left_frame)
+        cat_btn_frame.pack(fill=tk.X, pady=5)
+        ttk.Button(cat_btn_frame, text="➕ Add", command=self.add_category).pack(side=tk.LEFT, padx=2)
+        ttk.Button(cat_btn_frame, text="➖ Remove", command=self.remove_category).pack(side=tk.LEFT, padx=2)
+        ttk.Button(cat_btn_frame, text="⬆️", command=lambda: self.move_category(-1)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(cat_btn_frame, text="⬇️", command=lambda: self.move_category(1)).pack(side=tk.LEFT, padx=2)
+        
+        # Right side - category editor
+        cat_right_frame = ttk.Frame(categories_frame)
+        cat_right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+        ttk.Label(cat_right_frame, text="Category ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.category_id = ttk.Entry(cat_right_frame, width=30)
+        self.category_id.grid(row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(cat_right_frame, text="Name:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.category_name = ttk.Entry(cat_right_frame, width=30)
+        self.category_name.grid(row=1, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(cat_right_frame, text="Icon (emoji):").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.category_icon = ttk.Entry(cat_right_frame, width=10)
+        self.category_icon.grid(row=2, column=1, sticky=tk.W, pady=5)
+        
+        self.category_expanded = tk.BooleanVar(value=False)
+        ttk.Checkbutton(cat_right_frame, text="Expanded by default", variable=self.category_expanded).grid(row=3, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Button(cat_right_frame, text="💾 Update Category", command=self.update_category).grid(row=4, column=1, sticky=tk.W, pady=10)
     
     def create_moderation_tab(self):
         """Create moderation settings tab."""
@@ -976,22 +1069,34 @@ class ConfigTool:
         scenario_id = self.scenario_id.get().strip()
         scenario_name = self.scenario_name.get().strip()
         scenario_icon = self.scenario_icon.get().strip()
+        scenario_category = self.scenario_category.get().strip().split(" - ")[0] if hasattr(self, 'scenario_category') else ""
+        scenario_user_role = self.scenario_user_role.get().strip() if hasattr(self, 'scenario_user_role') else ""
         scenario_desc = self.scenario_desc.get("1.0", tk.END).strip()
         scenario_prompt = self.scenario_prompt.get("1.0", tk.END).strip()
         
         # Only save if we have valid data
         if scenario_id and scenario_name:
-            self.config["scenarios"][self._current_scenario_idx] = {
+            scenario_data = {
                 "id": scenario_id,
                 "name": scenario_name,
                 "icon": scenario_icon or "📝",
                 "description": scenario_desc,
                 "system_prompt": scenario_prompt
             }
+            if scenario_category:
+                scenario_data["category"] = scenario_category
+            if scenario_user_role:
+                scenario_data["user_role"] = scenario_user_role
+            
+            self.config["scenarios"][self._current_scenario_idx] = scenario_data
             
             # Update listbox display for the saved scenario
+            cat_name = self._get_category_name(scenario_category)
+            display = f"{scenario_icon or '📝'} {scenario_name}"
+            if cat_name:
+                display += f" [{cat_name}]"
             self.scenario_listbox.delete(self._current_scenario_idx)
-            self.scenario_listbox.insert(self._current_scenario_idx, f"{scenario_icon or '📝'} {scenario_name}")
+            self.scenario_listbox.insert(self._current_scenario_idx, display)
     
     def on_scenario_select(self, event):
         """Handle scenario selection. Auto-saves previous scenario before loading new one."""
@@ -1019,6 +1124,20 @@ class ConfigTool:
         self.scenario_icon.delete(0, tk.END)
         self.scenario_icon.insert(0, scenario["icon"])
         
+        # Set category dropdown
+        if hasattr(self, 'scenario_category'):
+            cat_id = scenario.get("category", "")
+            cat_name = self._get_category_name(cat_id)
+            if cat_id and cat_name:
+                self.scenario_category.set(f"{cat_id} - {cat_name}")
+            else:
+                self.scenario_category.set("")
+        
+        # Set user role
+        if hasattr(self, 'scenario_user_role'):
+            self.scenario_user_role.delete(0, tk.END)
+            self.scenario_user_role.insert(0, scenario.get("user_role", ""))
+        
         self.scenario_desc.delete("1.0", tk.END)
         self.scenario_desc.insert(tk.END, scenario["description"])
         
@@ -1033,17 +1152,30 @@ class ConfigTool:
             return
         
         idx = selection[0]
-        self.config["scenarios"][idx] = {
+        scenario_category = self.scenario_category.get().strip().split(" - ")[0] if hasattr(self, 'scenario_category') else ""
+        scenario_user_role = self.scenario_user_role.get().strip() if hasattr(self, 'scenario_user_role') else ""
+        
+        scenario_data = {
             "id": self.scenario_id.get(),
             "name": self.scenario_name.get(),
             "icon": self.scenario_icon.get(),
             "description": self.scenario_desc.get("1.0", tk.END).strip(),
             "system_prompt": self.scenario_prompt.get("1.0", tk.END).strip()
         }
+        if scenario_category:
+            scenario_data["category"] = scenario_category
+        if scenario_user_role:
+            scenario_data["user_role"] = scenario_user_role
+        
+        self.config["scenarios"][idx] = scenario_data
         
         # Update listbox
+        cat_name = self._get_category_name(scenario_category)
+        display = f"{self.scenario_icon.get()} {self.scenario_name.get()}"
+        if cat_name:
+            display += f" [{cat_name}]"
         self.scenario_listbox.delete(idx)
-        self.scenario_listbox.insert(idx, f"{self.scenario_icon.get()} {self.scenario_name.get()}")
+        self.scenario_listbox.insert(idx, display)
         self.scenario_listbox.selection_set(idx)
         
         # Keep tracker in sync
@@ -1060,6 +1192,7 @@ class ConfigTool:
             "id": "new_scenario",
             "name": "New Scenario",
             "icon": "🆕",
+            "category": "",
             "description": "Description here",
             "system_prompt": "You are a helpful assistant."
         }
@@ -1112,9 +1245,153 @@ class ConfigTool:
         # Update listbox
         self.scenario_listbox.delete(0, tk.END)
         for scenario in self.config["scenarios"]:
-            self.scenario_listbox.insert(tk.END, f"{scenario['icon']} {scenario['name']}")
+            cat_name = self._get_category_name(scenario.get("category", ""))
+            display = f"{scenario['icon']} {scenario['name']}"
+            if cat_name:
+                display += f" [{cat_name}]"
+            self.scenario_listbox.insert(tk.END, display)
         
         self.scenario_listbox.selection_set(new_idx)
+    
+    # Category management helper methods
+    def _get_category_name(self, category_id):
+        """Get category name from ID."""
+        if not category_id:
+            return ""
+        categories = self.config.get("scenario_categories", [])
+        for cat in categories:
+            if cat["id"] == category_id:
+                return cat["name"]
+        return ""
+    
+    def _update_category_dropdown(self):
+        """Update the category dropdown with current categories."""
+        categories = self.config.get("scenario_categories", [])
+        values = [""] + [f"{cat['id']} - {cat['name']}" for cat in categories]
+        self.scenario_category['values'] = values
+    
+    def _refresh_category_listbox(self):
+        """Refresh the category listbox."""
+        if not hasattr(self, 'category_listbox'):
+            return
+        self.category_listbox.delete(0, tk.END)
+        for cat in self.config.get("scenario_categories", []):
+            self.category_listbox.insert(tk.END, f"{cat['icon']} {cat['name']}")
+    
+    def on_category_select(self, event):
+        """Handle category selection."""
+        selection = self.category_listbox.curselection()
+        if not selection:
+            return
+        
+        idx = selection[0]
+        cat = self.config["scenario_categories"][idx]
+        
+        self.category_id.delete(0, tk.END)
+        self.category_id.insert(0, cat["id"])
+        
+        self.category_name.delete(0, tk.END)
+        self.category_name.insert(0, cat["name"])
+        
+        self.category_icon.delete(0, tk.END)
+        self.category_icon.insert(0, cat["icon"])
+        
+        self.category_expanded.set(cat.get("expanded", False))
+    
+    def update_category(self):
+        """Update selected category."""
+        selection = self.category_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a category to update.")
+            return
+        
+        idx = selection[0]
+        self.config["scenario_categories"][idx] = {
+            "id": self.category_id.get(),
+            "name": self.category_name.get(),
+            "icon": self.category_icon.get(),
+            "expanded": self.category_expanded.get()
+        }
+        
+        # Update listbox
+        self._refresh_category_listbox()
+        self.category_listbox.selection_set(idx)
+        
+        # Update scenario dropdown
+        self._update_category_dropdown()
+        
+        messagebox.showinfo("Success", "Category updated!")
+    
+    def add_category(self):
+        """Add new category."""
+        if "scenario_categories" not in self.config:
+            self.config["scenario_categories"] = []
+        
+        new_cat = {
+            "id": "new-category",
+            "name": "New Category",
+            "icon": "📁",
+            "expanded": False
+        }
+        self.config["scenario_categories"].append(new_cat)
+        self._refresh_category_listbox()
+        self._update_category_dropdown()
+        
+        # Select the new category
+        self.category_listbox.selection_clear(0, tk.END)
+        self.category_listbox.selection_set(tk.END)
+        self.on_category_select(None)
+    
+    def remove_category(self):
+        """Remove selected category."""
+        selection = self.category_listbox.curselection()
+        if not selection:
+            return
+        
+        idx = selection[0]
+        cat_id = self.config["scenario_categories"][idx]["id"]
+        
+        # Check if any scenarios use this category
+        using_scenarios = [s["name"] for s in self.config["scenarios"] if s.get("category") == cat_id]
+        if using_scenarios:
+            if not messagebox.askyesno("Warning", 
+                f"The following scenarios use this category:\n{', '.join(using_scenarios[:5])}\n\n"
+                "Their category will be cleared. Continue?"):
+                return
+            # Clear category from scenarios
+            for s in self.config["scenarios"]:
+                if s.get("category") == cat_id:
+                    s["category"] = ""
+        
+        del self.config["scenario_categories"][idx]
+        self._refresh_category_listbox()
+        self._update_category_dropdown()
+        
+        # Clear fields
+        self.category_id.delete(0, tk.END)
+        self.category_name.delete(0, tk.END)
+        self.category_icon.delete(0, tk.END)
+        self.category_expanded.set(False)
+    
+    def move_category(self, direction):
+        """Move category up or down."""
+        selection = self.category_listbox.curselection()
+        if not selection:
+            return
+        
+        idx = selection[0]
+        new_idx = idx + direction
+        categories = self.config.get("scenario_categories", [])
+        
+        if new_idx < 0 or new_idx >= len(categories):
+            return
+        
+        # Swap
+        categories[idx], categories[new_idx] = categories[new_idx], categories[idx]
+        
+        self._refresh_category_listbox()
+        self._update_category_dropdown()
+        self.category_listbox.selection_set(new_idx)
     
     def save_all(self):
         """Save all settings to config."""

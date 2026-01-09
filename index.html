@@ -207,10 +207,31 @@
             padding: 8px;
             flex-direction: column;
             gap: 6px;
+            max-height: 250px;
+            overflow-y: auto;
         }
 
         .category-content.expanded {
             display: flex;
+        }
+
+        /* Scrollbar styling for category dropdowns */
+        .category-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .category-content::-webkit-scrollbar-track {
+            background: var(--card-secondary);
+            border-radius: 3px;
+        }
+        
+        .category-content::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        
+        .category-content::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
 
         /* Show All Button - fills remaining sidebar space */
