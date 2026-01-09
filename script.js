@@ -909,6 +909,11 @@ let vadRecording = false;
 let vadSpeechStart = 0;
 let vadLastVoiceTs = 0;
 
+// VAD toggle with delay state
+let vadCountdownActive = false;
+let vadCountdownSeconds = 5;
+let vadCountdownInterval = null;
+
 // DOM Elements - updated for new professional UI
 const statusEl = document.getElementById('statusText');
 const statusBadge = document.getElementById('statusBadge');
@@ -1266,24 +1271,20 @@ function playNextChunk() {
 // --- UI Helpers ---
 
 function setupUI() {
-    // Record button (for PTT mode)
+    // Record button - handles both PTT toggle and VAD with 5-second delay
     if (recordBtn) {
-        recordBtn.addEventListener('mousedown', () => {
-            if (inputMode === MODES.PTT) startRecording();
-        });
-        recordBtn.addEventListener('mouseup', () => {
-            if (inputMode === MODES.PTT) stopRecording();
-        });
-        // Touch support for mobile
-        recordBtn.addEventListener('touchstart', (e) => {
-            if (inputMode !== MODES.PTT) return;
-            e.preventDefault();
-            startRecording();
-        });
-        recordBtn.addEventListener('touchend', (e) => {
-            if (inputMode !== MODES.PTT) return;
-            e.preventDefault();
-            stopRecording();
+        recordBtn.addEventListener('click', () => {
+            if (inputMode === MODES.PTT) {
+                // Toggle recording on/off
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            } else if (inputMode === MODES.VAD) {
+                // VAD mode: 5-second countdown toggle
+                toggleVadWithDelay();
+            }
         });
     }
 
@@ -1298,10 +1299,10 @@ function setupUI() {
                 
                 if (mode === 'vad') {
                     inputMode = MODES.VAD;
-                    startVAD();
+                    enableVadMode();
                 } else {
                     inputMode = MODES.PTT;
-                    stopVAD();
+                    disableVadMode();
                 }
                 updateRecordButtonForMode();
             });
@@ -1432,17 +1433,30 @@ function updateRecordButtonForMode() {
     if (inputMode === MODES.PTT) {
         recordBtn.disabled = false;
         if (isRecording) {
-            recordBtn.innerHTML = '🔴 Recording...';
+            recordBtn.innerHTML = '🔴 Recording... (Push to Stop)';
             recordBtn.classList.remove('primary');
             recordBtn.classList.add('danger');
         } else {
-            recordBtn.innerHTML = '🎤 Hold to Speak';
+            recordBtn.innerHTML = '🎤 Push to Start';
             recordBtn.classList.remove('danger');
             recordBtn.classList.add('primary');
         }
     } else {
-        recordBtn.disabled = true;
-        recordBtn.innerHTML = '🎤 VAD Active';
+        // VAD mode - button is enabled for toggle with delay
+        recordBtn.disabled = false;
+        if (vadCountdownActive) {
+            recordBtn.innerHTML = `⏳ Starting in ${vadCountdownSeconds}s...`;
+            recordBtn.classList.remove('primary', 'danger');
+            recordBtn.classList.add('warning');
+        } else if (vadRecording || vadStream) {
+            recordBtn.innerHTML = '🛑 Push to Stop VAD';
+            recordBtn.classList.remove('primary', 'warning');
+            recordBtn.classList.add('danger');
+        } else {
+            recordBtn.innerHTML = '🎤 Push to Start VAD';
+            recordBtn.classList.remove('danger', 'warning');
+            recordBtn.classList.add('primary');
+        }
     }
 }
 
@@ -1562,6 +1576,54 @@ function disableVadMode() {
     vadChunks = [];
     vadRecording = false;
     vadSmoothingBuffer = [];
+    setVadStatus(null);
+}
+
+// Toggle VAD with 5-second countdown delay
+function toggleVadWithDelay() {
+    // If countdown is active, cancel it
+    if (vadCountdownActive) {
+        cancelVadCountdown();
+        return;
+    }
+    
+    // If VAD is currently active, stop it immediately
+    if (vadStream) {
+        disableVadMode();
+        updateRecordButtonForMode();
+        return;
+    }
+    
+    // Start 5-second countdown before enabling VAD
+    vadCountdownActive = true;
+    vadCountdownSeconds = 5;
+    updateRecordButtonForMode();
+    setVadStatus('idle');
+    
+    vadCountdownInterval = setInterval(() => {
+        vadCountdownSeconds--;
+        updateRecordButtonForMode();
+        
+        if (vadCountdownSeconds <= 0) {
+            clearInterval(vadCountdownInterval);
+            vadCountdownInterval = null;
+            vadCountdownActive = false;
+            
+            // Enable VAD mode
+            enableVadMode();
+            updateRecordButtonForMode();
+        }
+    }, 1000);
+}
+
+function cancelVadCountdown() {
+    if (vadCountdownInterval) {
+        clearInterval(vadCountdownInterval);
+        vadCountdownInterval = null;
+    }
+    vadCountdownActive = false;
+    vadCountdownSeconds = 5;
+    updateRecordButtonForMode();
     setVadStatus(null);
 }
 

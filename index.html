@@ -249,6 +249,22 @@
             background: #dc2626;
         }
 
+        .control-btn.warning {
+            background: #f59e0b;
+            border-color: #f59e0b;
+            color: white;
+            animation: pulse-warning 1s ease-in-out infinite;
+        }
+
+        .control-btn.warning:hover {
+            background: #d97706;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
         .control-btn.full-width {
             grid-column: span 2;
         }
@@ -1386,7 +1402,7 @@
                 <h3 class="card-title">Controls</h3>
                 <div class="controls-grid">
                     <button id="recordBtn" class="control-btn primary">
-                        🎤 Record
+                        🎤 Push to Start VAD
                     </button>
                     <button id="muteBtn" class="control-btn secondary">
                         🔊 Mute AI

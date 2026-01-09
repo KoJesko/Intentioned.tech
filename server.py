@@ -1165,19 +1165,19 @@ def count_filler_words(text: str) -> dict:
 
     total = sum(filler_counts.values())
 
-    # Determine score
-    if total <= 2:
+    # Use config thresholds for scoring
+    if total <= FILLER_EXCELLENT_MAX:
         score = "🟢 Excellent"
-    elif total <= 5:
+    elif total <= FILLER_GOOD_MAX:
         score = "🟡 Good"
-    elif total <= 10:
+    elif total <= FILLER_NEEDS_WORK_MAX:
         score = "🟠 Needs Work"
     else:
         score = "🔴 Poor"
 
     return {
         "count": total,
-        "target": 5,
+        "target": FILLER_GOOD_MAX,
         "details": dict(filler_counts.most_common(10)),
         "score": score,
     }
@@ -1857,15 +1857,16 @@ def analyze_eye_contact(eye_contact_data: list[dict]) -> Optional[dict]:
     )
     percentage = (looking_at_camera / total_frames) * 100
 
-    if percentage >= 70:
+    # Use config thresholds
+    if percentage >= EYE_EXCELLENT:
         score = "🟢 Excellent"
         feedback = (
             f"Maintained eye contact {percentage:.1f}% of the time. Great engagement!"
         )
-    elif percentage >= 50:
+    elif percentage >= EYE_GOOD:
         score = "🟡 Good"
         feedback = f"Eye contact at {percentage:.1f}%. Try to look at the camera more consistently."
-    elif percentage >= 30:
+    elif percentage >= EYE_NEEDS_WORK:
         score = "🟠 Needs Work"
         feedback = f"Eye contact at {percentage:.1f}%. Practice looking at the camera while speaking."
     else:
@@ -1950,14 +1951,14 @@ def analyze_response_time(response_times: list[float]) -> dict:
     min_time = min(response_times)
     max_time = max(response_times)
 
-    # Ideal response time is 0.5-2 seconds (natural conversation pace)
-    if avg_time <= 1.5:
+    # Use config thresholds for response time
+    if avg_time <= RESP_IDEAL_MAX:
         score = "🟢 Excellent"
         feedback = f"Quick and engaged! Average response time of {avg_time:.1f}s shows active listening."
-    elif avg_time <= 3.0:
+    elif avg_time <= RESP_ACCEPTABLE_MAX:
         score = "🟡 Good"
         feedback = f"Good response time of {avg_time:.1f}s. You're engaged in the conversation."
-    elif avg_time <= 5.0:
+    elif avg_time <= RESP_ACCEPTABLE_MAX * 1.5:
         score = "🟠 Needs Work"
         feedback = f"Average response time of {avg_time:.1f}s. Try to respond more promptly to maintain conversation flow."
     else:
@@ -2021,18 +2022,17 @@ def analyze_speaking_pace(
     min_wpm = min(wpm_values)
     max_wpm = max(wpm_values)
 
-    # Ideal speaking pace: 120-150 WPM (conversational)
-    # Acceptable range: 100-170 WPM
-    if 120 <= avg_wpm <= 150:
+    # Use config thresholds for speaking pace
+    if PACE_IDEAL_MIN <= avg_wpm <= PACE_IDEAL_MAX:
         score = "🟢 Excellent"
         feedback = f"Perfect conversational pace at {avg_wpm:.0f} WPM. Clear and easy to follow."
-    elif 100 <= avg_wpm < 120:
+    elif PACE_ACCEPTABLE_MIN <= avg_wpm < PACE_IDEAL_MIN:
         score = "🟡 Good"
         feedback = f"Slightly slow at {avg_wpm:.0f} WPM. Consider picking up the pace slightly for more engaging conversations."
-    elif 150 < avg_wpm <= 170:
+    elif PACE_IDEAL_MAX < avg_wpm <= PACE_ACCEPTABLE_MAX:
         score = "🟡 Good"
         feedback = f"Slightly fast at {avg_wpm:.0f} WPM. Still clear, but could slow down a bit."
-    elif avg_wpm < 100:
+    elif avg_wpm < PACE_ACCEPTABLE_MIN:
         score = "🟠 Slow"
         feedback = f"Speaking too slowly at {avg_wpm:.0f} WPM. Try to maintain a more natural conversational pace."
     else:
@@ -2052,14 +2052,14 @@ def analyze_speaking_pace(
 # Human refined from AI block above.
 def analyze_interruptions(interruption_count: int) -> dict:
     """Analyze user interruptions during AI speech."""
-    # Target: less than 3 interruptions is acceptable
+    # Use config thresholds
     if interruption_count == 0:
         score = "🟢 Excellent"
         feedback = "Perfect! You let the AI finish speaking before responding. Great listening skills!"
-    elif interruption_count < 3:
+    elif interruption_count <= INT_ACCEPTABLE_MAX:
         score = "🟡 Good"
         feedback = f"You interrupted {interruption_count} time(s). Try to let the speaker finish for better conversation flow."
-    elif interruption_count < 5:
+    elif interruption_count <= INT_WARNING_MAX:
         score = "🟠 Needs Work"
         feedback = f"You interrupted {interruption_count} times. Practice patience and let others complete their thoughts."
     else:
@@ -2263,6 +2263,42 @@ FILLER_WORDS = {
     "things",
     "yeah",
 }
+
+# Load analysis config from config.json for tunable thresholds
+_analysis_cfg = _CONFIG.get("analysis", {})
+
+# Speaking pace thresholds (words per minute)
+_pace_cfg = _analysis_cfg.get("speaking_pace", {})
+PACE_IDEAL_MIN = _pace_cfg.get("ideal_min_wpm", 120)
+PACE_IDEAL_MAX = _pace_cfg.get("ideal_max_wpm", 150)
+PACE_ACCEPTABLE_MIN = _pace_cfg.get("acceptable_min_wpm", 100)
+PACE_ACCEPTABLE_MAX = _pace_cfg.get("acceptable_max_wpm", 170)
+
+# Eye contact thresholds (percentage)
+_eye_cfg = _analysis_cfg.get("eye_contact", {})
+EYE_EXCELLENT = _eye_cfg.get("excellent_threshold", 70)
+EYE_GOOD = _eye_cfg.get("good_threshold", 50)
+EYE_NEEDS_WORK = _eye_cfg.get("needs_work_threshold", 30)
+
+# Filler words thresholds
+_filler_cfg = _analysis_cfg.get("filler_words", {})
+FILLER_EXCELLENT_MAX = _filler_cfg.get("excellent_max", 2)
+FILLER_GOOD_MAX = _filler_cfg.get("good_max", 5)
+FILLER_NEEDS_WORK_MAX = _filler_cfg.get("needs_work_max", 10)
+CUSTOM_FILLERS = set(_filler_cfg.get("custom_fillers", []))
+# Add custom fillers to the set
+FILLER_WORDS = FILLER_WORDS.union(CUSTOM_FILLERS)
+
+# Interruptions thresholds
+_int_cfg = _analysis_cfg.get("interruptions", {})
+INT_ACCEPTABLE_MAX = _int_cfg.get("acceptable_max", 3)
+INT_WARNING_MAX = _int_cfg.get("warning_max", 5)
+
+# Response time thresholds (seconds)
+_resp_cfg = _analysis_cfg.get("response_time", {})
+RESP_IDEAL_MIN = _resp_cfg.get("ideal_min_seconds", 0.5)
+RESP_IDEAL_MAX = _resp_cfg.get("ideal_max_seconds", 2.0)
+RESP_ACCEPTABLE_MAX = _resp_cfg.get("acceptable_max_seconds", 4.0)
 
 # Revision for HuggingFace model pinning (supply chain security)
 HF_MODEL_REVISION = os.getenv("HF_MODEL_REVISION", "main")

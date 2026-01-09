@@ -146,6 +146,58 @@ When in doubt, ALWAYS say SAFE. False negatives are better than false positives 
         "show_eye_contact": True,
         "show_session_analysis": True,
         "default_mic_mode": "vad"
+    },
+    "analysis": {
+        "speaking_pace": {
+            "ideal_min_wpm": 120,
+            "ideal_max_wpm": 150,
+            "acceptable_min_wpm": 100,
+            "acceptable_max_wpm": 170
+        },
+        "eye_contact": {
+            "excellent_threshold": 70,
+            "good_threshold": 50,
+            "needs_work_threshold": 30
+        },
+        "filler_words": {
+            "excellent_max": 2,
+            "good_max": 5,
+            "needs_work_max": 10,
+            "custom_fillers": []
+        },
+        "interruptions": {
+            "acceptable_max": 3,
+            "warning_max": 5
+        },
+        "response_time": {
+            "ideal_min_seconds": 0.5,
+            "ideal_max_seconds": 2.0,
+            "acceptable_max_seconds": 4.0
+        }
+    },
+    "policies": {
+        "privacy_policy": {
+            "site_name": "Intentioned",
+            "company_name": "Intentioned",
+            "contact_email": "privacy@intentioned.tech",
+            "last_updated": "2026-01-09",
+            "data_retention_days": 30,
+            "custom_sections": []
+        },
+        "terms_of_use": {
+            "site_name": "Intentioned",
+            "company_name": "Intentioned",
+            "contact_email": "legal@intentioned.tech",
+            "last_updated": "2026-01-09",
+            "minimum_age": 13,
+            "custom_sections": []
+        },
+        "code_of_conduct": {
+            "site_name": "Intentioned",
+            "contact_email": "conduct@intentioned.tech",
+            "last_updated": "2026-01-09",
+            "custom_sections": []
+        }
     }
 }
 
@@ -217,6 +269,8 @@ class ConfigTool:
         self.create_moderation_tab()
         self.create_voices_tab()
         self.create_ui_tab()
+        self.create_analysis_tab()
+        self.create_policies_tab()
         
         # Bottom buttons
         btn_frame = ttk.Frame(self.root)
@@ -277,11 +331,31 @@ class ConfigTool:
         self.stt_engine.set(self.config["models"]["stt_engine"])
         self.stt_engine.grid(row=1, column=1, sticky=tk.W, pady=5)
         
-        # LLM Model ID
-        ttk.Label(frame, text="LLM Model ID:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.llm_model_id = ttk.Entry(frame, width=40)
-        self.llm_model_id.insert(0, self.config["models"]["llm_model_id"])
-        self.llm_model_id.grid(row=2, column=1, sticky=tk.W, pady=5)
+        # HuggingFace Model Section
+        hf_frame = ttk.LabelFrame(frame, text="🤗 HuggingFace LLM Model", padding=10)
+        hf_frame.grid(row=2, column=0, columnspan=3, sticky=tk.EW, pady=10)
+        
+        ttk.Label(hf_frame, text="Model ID:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.llm_model_id = ttk.Combobox(hf_frame, width=45, values=[
+            "Qwen/Qwen2.5-3B-Instruct",
+            "Qwen/Qwen2.5-1.5B-Instruct",
+            "Qwen/Qwen2.5-7B-Instruct",
+            "microsoft/Phi-3-mini-4k-instruct",
+            "microsoft/Phi-3.5-mini-instruct",
+            "meta-llama/Llama-3.2-3B-Instruct",
+            "meta-llama/Llama-3.2-1B-Instruct",
+            "google/gemma-2-2b-it",
+            "unsloth/gemma-3-1b-it-GGUF",
+            "mistralai/Mistral-7B-Instruct-v0.3",
+            "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+        ])
+        self.llm_model_id.set(self.config["models"]["llm_model_id"])
+        self.llm_model_id.grid(row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(hf_frame, text="Format: owner/model-name (e.g., Qwen/Qwen2.5-3B-Instruct)", 
+                  font=('TkDefaultFont', 8)).grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=2)
+        
+        ttk.Button(hf_frame, text="🔍 Validate Model", command=self.validate_hf_model).grid(row=0, column=2, padx=10)
         
         # LLM Max Tokens
         ttk.Label(frame, text="LLM Max Tokens:").grid(row=3, column=0, sticky=tk.W, pady=5)
@@ -438,6 +512,370 @@ class ConfigTool:
         self.default_mic_mode = ttk.Combobox(frame, values=["vad", "ptt"], width=15)
         self.default_mic_mode.set(self.config["ui"]["default_mic_mode"])
         self.default_mic_mode.grid(row=4, column=1, sticky=tk.W, pady=5)
+    
+    def create_analysis_tab(self):
+        """Create analysis settings tab for fine-tuning AI measurements."""
+        frame = ttk.Frame(self.notebook, padding=20)
+        self.notebook.add(frame, text="📊 Analysis")
+        
+        # Create a canvas with scrollbar for the content
+        canvas = tk.Canvas(frame)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        row = 0
+        
+        # Speaking Pace Section
+        ttk.Label(scrollable_frame, text="🎤 Speaking Pace (WPM)", font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=(10, 5))
+        row += 1
+        
+        pace_cfg = self.config.get("analysis", {}).get("speaking_pace", {})
+        
+        ttk.Label(scrollable_frame, text="Ideal Min WPM:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.pace_ideal_min = ttk.Entry(scrollable_frame, width=10)
+        self.pace_ideal_min.insert(0, str(pace_cfg.get("ideal_min_wpm", 120)))
+        self.pace_ideal_min.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Ideal Max WPM:").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.pace_ideal_max = ttk.Entry(scrollable_frame, width=10)
+        self.pace_ideal_max.insert(0, str(pace_cfg.get("ideal_max_wpm", 150)))
+        self.pace_ideal_max.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(scrollable_frame, text="Acceptable Min WPM:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.pace_acceptable_min = ttk.Entry(scrollable_frame, width=10)
+        self.pace_acceptable_min.insert(0, str(pace_cfg.get("acceptable_min_wpm", 100)))
+        self.pace_acceptable_min.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Acceptable Max WPM:").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.pace_acceptable_max = ttk.Entry(scrollable_frame, width=10)
+        self.pace_acceptable_max.insert(0, str(pace_cfg.get("acceptable_max_wpm", 170)))
+        self.pace_acceptable_max.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        # Eye Contact Section
+        ttk.Label(scrollable_frame, text="👁️ Eye Contact Thresholds (%)", font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=(20, 5))
+        row += 1
+        
+        eye_cfg = self.config.get("analysis", {}).get("eye_contact", {})
+        
+        ttk.Label(scrollable_frame, text="Excellent (≥):").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.eye_excellent = ttk.Entry(scrollable_frame, width=10)
+        self.eye_excellent.insert(0, str(eye_cfg.get("excellent_threshold", 70)))
+        self.eye_excellent.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Good (≥):").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.eye_good = ttk.Entry(scrollable_frame, width=10)
+        self.eye_good.insert(0, str(eye_cfg.get("good_threshold", 50)))
+        self.eye_good.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(scrollable_frame, text="Needs Work (≥):").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.eye_needs_work = ttk.Entry(scrollable_frame, width=10)
+        self.eye_needs_work.insert(0, str(eye_cfg.get("needs_work_threshold", 30)))
+        self.eye_needs_work.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
+        
+        # Filler Words Section
+        ttk.Label(scrollable_frame, text="🗣️ Filler Words Thresholds", font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=(20, 5))
+        row += 1
+        
+        filler_cfg = self.config.get("analysis", {}).get("filler_words", {})
+        
+        ttk.Label(scrollable_frame, text="Excellent (≤):").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.filler_excellent = ttk.Entry(scrollable_frame, width=10)
+        self.filler_excellent.insert(0, str(filler_cfg.get("excellent_max", 2)))
+        self.filler_excellent.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Good (≤):").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.filler_good = ttk.Entry(scrollable_frame, width=10)
+        self.filler_good.insert(0, str(filler_cfg.get("good_max", 5)))
+        self.filler_good.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(scrollable_frame, text="Needs Work (≤):").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.filler_needs_work = ttk.Entry(scrollable_frame, width=10)
+        self.filler_needs_work.insert(0, str(filler_cfg.get("needs_work_max", 10)))
+        self.filler_needs_work.grid(row=row, column=1, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(scrollable_frame, text="Custom Filler Words (comma-separated):").grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(10, 2))
+        row += 1
+        self.custom_fillers = ttk.Entry(scrollable_frame, width=60)
+        self.custom_fillers.insert(0, ", ".join(filler_cfg.get("custom_fillers", [])))
+        self.custom_fillers.grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=2)
+        row += 1
+        
+        # Interruptions Section
+        ttk.Label(scrollable_frame, text="🔇 Interruptions Thresholds", font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=(20, 5))
+        row += 1
+        
+        int_cfg = self.config.get("analysis", {}).get("interruptions", {})
+        
+        ttk.Label(scrollable_frame, text="Acceptable (≤):").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.int_acceptable = ttk.Entry(scrollable_frame, width=10)
+        self.int_acceptable.insert(0, str(int_cfg.get("acceptable_max", 3)))
+        self.int_acceptable.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Warning (≤):").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.int_warning = ttk.Entry(scrollable_frame, width=10)
+        self.int_warning.insert(0, str(int_cfg.get("warning_max", 5)))
+        self.int_warning.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        # Response Time Section
+        ttk.Label(scrollable_frame, text="⏱️ Response Time (seconds)", font=('TkDefaultFont', 10, 'bold')).grid(row=row, column=0, columnspan=4, sticky=tk.W, pady=(20, 5))
+        row += 1
+        
+        resp_cfg = self.config.get("analysis", {}).get("response_time", {})
+        
+        ttk.Label(scrollable_frame, text="Ideal Min:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.resp_ideal_min = ttk.Entry(scrollable_frame, width=10)
+        self.resp_ideal_min.insert(0, str(resp_cfg.get("ideal_min_seconds", 0.5)))
+        self.resp_ideal_min.grid(row=row, column=1, sticky=tk.W, pady=2)
+        
+        ttk.Label(scrollable_frame, text="Ideal Max:").grid(row=row, column=2, sticky=tk.W, pady=2, padx=(20, 0))
+        self.resp_ideal_max = ttk.Entry(scrollable_frame, width=10)
+        self.resp_ideal_max.insert(0, str(resp_cfg.get("ideal_max_seconds", 2.0)))
+        self.resp_ideal_max.grid(row=row, column=3, sticky=tk.W, pady=2)
+        row += 1
+        
+        ttk.Label(scrollable_frame, text="Acceptable Max:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        self.resp_acceptable_max = ttk.Entry(scrollable_frame, width=10)
+        self.resp_acceptable_max.insert(0, str(resp_cfg.get("acceptable_max_seconds", 4.0)))
+        self.resp_acceptable_max.grid(row=row, column=1, sticky=tk.W, pady=2)
+    
+    def create_policies_tab(self):
+        """Create policies configuration tab."""
+        frame = ttk.Frame(self.notebook, padding=20)
+        self.notebook.add(frame, text="📜 Policies")
+        
+        # Sub-notebook for different policies
+        policies_notebook = ttk.Notebook(frame)
+        policies_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Privacy Policy
+        pp_frame = ttk.Frame(policies_notebook, padding=10)
+        policies_notebook.add(pp_frame, text="Privacy Policy")
+        
+        pp_cfg = self.config.get("policies", {}).get("privacy_policy", {})
+        
+        ttk.Label(pp_frame, text="Site Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.pp_site_name = ttk.Entry(pp_frame, width=40)
+        self.pp_site_name.insert(0, pp_cfg.get("site_name", "Intentioned"))
+        self.pp_site_name.grid(row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(pp_frame, text="Company Name:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.pp_company_name = ttk.Entry(pp_frame, width=40)
+        self.pp_company_name.insert(0, pp_cfg.get("company_name", "Intentioned"))
+        self.pp_company_name.grid(row=1, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(pp_frame, text="Contact Email:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.pp_contact_email = ttk.Entry(pp_frame, width=40)
+        self.pp_contact_email.insert(0, pp_cfg.get("contact_email", "privacy@intentioned.tech"))
+        self.pp_contact_email.grid(row=2, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(pp_frame, text="Data Retention (days):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.pp_retention_days = ttk.Entry(pp_frame, width=10)
+        self.pp_retention_days.insert(0, str(pp_cfg.get("data_retention_days", 30)))
+        self.pp_retention_days.grid(row=3, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(pp_frame, text="Last Updated:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.pp_last_updated = ttk.Entry(pp_frame, width=20)
+        self.pp_last_updated.insert(0, pp_cfg.get("last_updated", "2026-01-09"))
+        self.pp_last_updated.grid(row=4, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Button(pp_frame, text="🔄 Regenerate Privacy Policy", command=self.regenerate_privacy_policy).grid(row=5, column=0, columnspan=2, pady=10)
+        
+        # Terms of Use
+        tou_frame = ttk.Frame(policies_notebook, padding=10)
+        policies_notebook.add(tou_frame, text="Terms of Use")
+        
+        tou_cfg = self.config.get("policies", {}).get("terms_of_use", {})
+        
+        ttk.Label(tou_frame, text="Site Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.tou_site_name = ttk.Entry(tou_frame, width=40)
+        self.tou_site_name.insert(0, tou_cfg.get("site_name", "Intentioned"))
+        self.tou_site_name.grid(row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(tou_frame, text="Company Name:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.tou_company_name = ttk.Entry(tou_frame, width=40)
+        self.tou_company_name.insert(0, tou_cfg.get("company_name", "Intentioned"))
+        self.tou_company_name.grid(row=1, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(tou_frame, text="Contact Email:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.tou_contact_email = ttk.Entry(tou_frame, width=40)
+        self.tou_contact_email.insert(0, tou_cfg.get("contact_email", "legal@intentioned.tech"))
+        self.tou_contact_email.grid(row=2, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(tou_frame, text="Minimum Age:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.tou_min_age = ttk.Entry(tou_frame, width=10)
+        self.tou_min_age.insert(0, str(tou_cfg.get("minimum_age", 13)))
+        self.tou_min_age.grid(row=3, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(tou_frame, text="Last Updated:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.tou_last_updated = ttk.Entry(tou_frame, width=20)
+        self.tou_last_updated.insert(0, tou_cfg.get("last_updated", "2026-01-09"))
+        self.tou_last_updated.grid(row=4, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Button(tou_frame, text="🔄 Regenerate Terms of Use", command=self.regenerate_terms_of_use).grid(row=5, column=0, columnspan=2, pady=10)
+        
+        # Code of Conduct
+        coc_frame = ttk.Frame(policies_notebook, padding=10)
+        policies_notebook.add(coc_frame, text="Code of Conduct")
+        
+        coc_cfg = self.config.get("policies", {}).get("code_of_conduct", {})
+        
+        ttk.Label(coc_frame, text="Site Name:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.coc_site_name = ttk.Entry(coc_frame, width=40)
+        self.coc_site_name.insert(0, coc_cfg.get("site_name", "Intentioned"))
+        self.coc_site_name.grid(row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(coc_frame, text="Contact Email:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.coc_contact_email = ttk.Entry(coc_frame, width=40)
+        self.coc_contact_email.insert(0, coc_cfg.get("contact_email", "conduct@intentioned.tech"))
+        self.coc_contact_email.grid(row=1, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(coc_frame, text="Last Updated:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.coc_last_updated = ttk.Entry(coc_frame, width=20)
+        self.coc_last_updated.insert(0, coc_cfg.get("last_updated", "2026-01-09"))
+        self.coc_last_updated.grid(row=2, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Button(coc_frame, text="🔄 Regenerate Code of Conduct", command=self.regenerate_code_of_conduct).grid(row=3, column=0, columnspan=2, pady=10)
+    
+    def regenerate_privacy_policy(self):
+        """Regenerate privacy policy HTML from template."""
+        try:
+            template_path = self.config_path.parent / "privacy_policy.template.html"
+            output_path = self.config_path.parent / "privacy_policy.html"
+            
+            if not template_path.exists():
+                messagebox.showerror("Error", f"Template not found: {template_path}")
+                return
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template = f.read()
+            
+            # Replace placeholders
+            pp_cfg = self.config.get("policies", {}).get("privacy_policy", {})
+            html = template.replace("{{SITE_NAME}}", self.pp_site_name.get())
+            html = html.replace("{{COMPANY_NAME}}", self.pp_company_name.get())
+            html = html.replace("{{CONTACT_EMAIL}}", self.pp_contact_email.get())
+            html = html.replace("{{LAST_UPDATED}}", self.pp_last_updated.get())
+            html = html.replace("{{DATA_RETENTION_DAYS}}", self.pp_retention_days.get())
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            
+            messagebox.showinfo("Success", f"Privacy policy regenerated: {output_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to regenerate: {e}")
+    
+    def regenerate_terms_of_use(self):
+        """Regenerate terms of use HTML from template."""
+        try:
+            template_path = self.config_path.parent / "terms_of_use.template.html"
+            output_path = self.config_path.parent / "terms_of_use.html"
+            
+            if not template_path.exists():
+                messagebox.showerror("Error", f"Template not found: {template_path}")
+                return
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template = f.read()
+            
+            # Replace placeholders
+            html = template.replace("{{SITE_NAME}}", self.tou_site_name.get())
+            html = html.replace("{{COMPANY_NAME}}", self.tou_company_name.get())
+            html = html.replace("{{CONTACT_EMAIL}}", self.tou_contact_email.get())
+            html = html.replace("{{LAST_UPDATED}}", self.tou_last_updated.get())
+            html = html.replace("{{MINIMUM_AGE}}", self.tou_min_age.get())
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            
+            messagebox.showinfo("Success", f"Terms of use regenerated: {output_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to regenerate: {e}")
+    
+    def regenerate_code_of_conduct(self):
+        """Regenerate code of conduct HTML from template."""
+        try:
+            template_path = self.config_path.parent / "code_of_conduct.template.html"
+            output_path = self.config_path.parent / "code_of_conduct.html"
+            
+            if not template_path.exists():
+                messagebox.showerror("Error", f"Template not found: {template_path}")
+                return
+            
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template = f.read()
+            
+            # Replace placeholders
+            html = template.replace("{{SITE_NAME}}", self.coc_site_name.get())
+            html = html.replace("{{CONTACT_EMAIL}}", self.coc_contact_email.get())
+            html = html.replace("{{LAST_UPDATED}}", self.coc_last_updated.get())
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            
+            messagebox.showinfo("Success", f"Code of conduct regenerated: {output_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to regenerate: {e}")
+    
+    def validate_hf_model(self):
+        """Validate that the HuggingFace model ID exists."""
+        import urllib.request
+        import urllib.error
+        
+        model_id = self.llm_model_id.get().strip()
+        if not model_id:
+            messagebox.showwarning("Warning", "Please enter a model ID first.")
+            return
+        
+        # Validate format
+        if "/" not in model_id:
+            messagebox.showerror("Invalid Format", 
+                "Model ID should be in format: owner/model-name\n"
+                "Example: Qwen/Qwen2.5-3B-Instruct")
+            return
+        
+        # Check if model exists on HuggingFace
+        url = f"https://huggingface.co/api/models/{model_id}"
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
+                if response.status == 200:
+                    import json as json_module
+                    data = json_module.loads(response.read().decode())
+                    model_info = f"Model: {data.get('id', model_id)}\n"
+                    model_info += f"Downloads: {data.get('downloads', 'N/A'):,}\n"
+                    model_info += f"Tags: {', '.join(data.get('tags', [])[:5])}"
+                    messagebox.showinfo("✅ Model Found", model_info)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                messagebox.showerror("❌ Model Not Found", 
+                    f"Model '{model_id}' was not found on HuggingFace.\n\n"
+                    "Please check:\n"
+                    "- Spelling of owner and model name\n"
+                    "- Model visibility (some are private)")
+            else:
+                messagebox.showerror("Error", f"HTTP Error: {e.code}")
+        except urllib.error.URLError as e:
+            messagebox.showerror("Network Error", 
+                f"Could not connect to HuggingFace:\n{e.reason}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Validation failed: {e}")
     
     # Scenario management methods
     def _save_current_scenario(self):
@@ -642,6 +1080,70 @@ class ConfigTool:
             self.config["ui"]["show_eye_contact"] = self.show_eye_contact.get()
             self.config["ui"]["show_session_analysis"] = self.show_session_analysis.get()
             self.config["ui"]["default_mic_mode"] = self.default_mic_mode.get()
+            
+            # Analysis settings
+            if "analysis" not in self.config:
+                self.config["analysis"] = {}
+            
+            self.config["analysis"]["speaking_pace"] = {
+                "ideal_min_wpm": int(self.pace_ideal_min.get()),
+                "ideal_max_wpm": int(self.pace_ideal_max.get()),
+                "acceptable_min_wpm": int(self.pace_acceptable_min.get()),
+                "acceptable_max_wpm": int(self.pace_acceptable_max.get())
+            }
+            
+            self.config["analysis"]["eye_contact"] = {
+                "excellent_threshold": int(self.eye_excellent.get()),
+                "good_threshold": int(self.eye_good.get()),
+                "needs_work_threshold": int(self.eye_needs_work.get())
+            }
+            
+            self.config["analysis"]["filler_words"] = {
+                "excellent_max": int(self.filler_excellent.get()),
+                "good_max": int(self.filler_good.get()),
+                "needs_work_max": int(self.filler_needs_work.get()),
+                "custom_fillers": [f.strip() for f in self.custom_fillers.get().split(",") if f.strip()]
+            }
+            
+            self.config["analysis"]["interruptions"] = {
+                "acceptable_max": int(self.int_acceptable.get()),
+                "warning_max": int(self.int_warning.get())
+            }
+            
+            self.config["analysis"]["response_time"] = {
+                "ideal_min_seconds": float(self.resp_ideal_min.get()),
+                "ideal_max_seconds": float(self.resp_ideal_max.get()),
+                "acceptable_max_seconds": float(self.resp_acceptable_max.get())
+            }
+            
+            # Policies
+            if "policies" not in self.config:
+                self.config["policies"] = {}
+            
+            self.config["policies"]["privacy_policy"] = {
+                "site_name": self.pp_site_name.get(),
+                "company_name": self.pp_company_name.get(),
+                "contact_email": self.pp_contact_email.get(),
+                "last_updated": self.pp_last_updated.get(),
+                "data_retention_days": int(self.pp_retention_days.get()),
+                "custom_sections": self.config.get("policies", {}).get("privacy_policy", {}).get("custom_sections", [])
+            }
+            
+            self.config["policies"]["terms_of_use"] = {
+                "site_name": self.tou_site_name.get(),
+                "company_name": self.tou_company_name.get(),
+                "contact_email": self.tou_contact_email.get(),
+                "last_updated": self.tou_last_updated.get(),
+                "minimum_age": int(self.tou_min_age.get()),
+                "custom_sections": self.config.get("policies", {}).get("terms_of_use", {}).get("custom_sections", [])
+            }
+            
+            self.config["policies"]["code_of_conduct"] = {
+                "site_name": self.coc_site_name.get(),
+                "contact_email": self.coc_contact_email.get(),
+                "last_updated": self.coc_last_updated.get(),
+                "custom_sections": self.config.get("policies", {}).get("code_of_conduct", {}).get("custom_sections", [])
+            }
             
             self.save_config()
             

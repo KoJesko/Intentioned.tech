@@ -13,7 +13,7 @@
     "vibevoice_voice": "en-Grace_woman",
     "edge_tts_voice": "female_us",
     "stt_engine": "parakeet",
-    "llm_model_id": "Qwen/Qwen2.5-3B-Instruct",
+    "llm_model_id": "unsloth/gemma-3-1b-it-GGUF",
     "llm_max_tokens": 72,
     "llm_temperature": 0.7
   },
@@ -181,5 +181,57 @@
     "show_eye_contact": true,
     "show_session_analysis": true,
     "default_mic_mode": "ptt"
+  },
+  "analysis": {
+    "speaking_pace": {
+      "ideal_min_wpm": 120,
+      "ideal_max_wpm": 150,
+      "acceptable_min_wpm": 100,
+      "acceptable_max_wpm": 170
+    },
+    "eye_contact": {
+      "excellent_threshold": 70,
+      "good_threshold": 50,
+      "needs_work_threshold": 30
+    },
+    "filler_words": {
+      "excellent_max": 2,
+      "good_max": 5,
+      "needs_work_max": 10,
+      "custom_fillers": []
+    },
+    "interruptions": {
+      "acceptable_max": 3,
+      "warning_max": 5
+    },
+    "response_time": {
+      "ideal_min_seconds": 0.5,
+      "ideal_max_seconds": 2.0,
+      "acceptable_max_seconds": 4.0
+    }
+  },
+  "policies": {
+    "privacy_policy": {
+      "site_name": "Intentioned",
+      "company_name": "Intentioned",
+      "contact_email": "privacy@intentioned.tech",
+      "last_updated": "2026-01-09",
+      "data_retention_days": 30,
+      "custom_sections": []
+    },
+    "terms_of_use": {
+      "site_name": "Intentioned",
+      "company_name": "Intentioned",
+      "contact_email": "legal@intentioned.tech",
+      "last_updated": "2026-01-09",
+      "minimum_age": 13,
+      "custom_sections": []
+    },
+    "code_of_conduct": {
+      "site_name": "Intentioned",
+      "contact_email": "conduct@intentioned.tech",
+      "last_updated": "2026-01-09",
+      "custom_sections": []
+    }
   }
 }
