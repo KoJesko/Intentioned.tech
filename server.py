@@ -718,11 +718,32 @@ async def export_result(filename: str):
 
     filepath = RESULTS_DIR / safe_filename
     # Ensure the requested file is an existing session result within RESULTS_DIR
-    if not filepath.exists() or filepath.resolve().parent != RESULTS_DIR.resolve():
+    try:
+        base_dir = RESULTS_DIR.resolve()
+        resolved_path = filepath.resolve()
+    except OSError:
+        return {"error": "Result not found"}
+
+    # Check that the resolved path exists and is contained within RESULTS_DIR
+    if not resolved_path.exists():
+        return {"error": "Result not found"}
+
+    # Use is_relative_to when available (Python 3.9+); otherwise, fall back to relative_to
+    is_inside_results = False
+    if hasattr(resolved_path, "is_relative_to"):
+        is_inside_results = resolved_path.is_relative_to(base_dir)
+    else:
+        try:
+            resolved_path.relative_to(base_dir)
+            is_inside_results = True
+        except ValueError:
+            is_inside_results = False
+
+    if not is_inside_results:
         return {"error": "Result not found"}
 
     return FileResponse(
-        path=filepath,
+        path=resolved_path,
         media_type="text/csv",
         filename=safe_filename,
     )
