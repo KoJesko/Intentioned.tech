@@ -83,7 +83,6 @@ import io
 import json
 import re
 import tempfile
-import wave
 from collections import Counter  # noqa: E402
 from concurrent.futures import ThreadPoolExecutor
 from difflib import SequenceMatcher
@@ -118,13 +117,11 @@ import torch
 from fastapi import (
     FastAPI,
     File,
-    HTTPException,
     UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Vosk for non-AI speech recognition (optional, falls back to Whisper if not available)
@@ -139,7 +136,7 @@ except ImportError:
 from transformers.generation.streamers import TextIteratorStreamer
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.pipelines import pipeline
+
 
 # --- Load environment variables from .env file ---
 def load_dotenv():
@@ -352,16 +349,19 @@ async def update_settings(settings: dict):
 
 @app.get("/api/scenarios")
 async def get_scenarios():
-    """Get available scenarios from config.json."""
+    """Get available scenarios and categories from config.json."""
     scenarios = _CONFIG.get("scenarios", [])
+    categories = _CONFIG.get("scenario_categories", [])
     # Return scenario metadata (without full system prompts for security)
     return {
+        "categories": categories,
         "scenarios": [
             {
                 "id": s.get("id"),
                 "name": s.get("name"),
                 "icon": s.get("icon", "💬"),
                 "description": s.get("description", ""),
+                "category": s.get("category", "general-talks"),
                 "user_role": s.get("user_role"),  # For role-based scenarios
             }
             for s in scenarios
@@ -3027,7 +3027,7 @@ class ModelManager:
 
         # No pipeline for Wav2Vec2 - we'll do direct inference
         self.stt_pipe = None
-        print(f"✅ Wav2Vec2 loaded (CTC-based, no hallucinations)")
+        print("✅ Wav2Vec2 loaded (CTC-based, no hallucinations)")
 
     def _load_parakeet_model(self):
         """Load NVIDIA Parakeet TDT 0.6B v3 - best 2025 STT model, zero hallucinations."""
@@ -3303,9 +3303,9 @@ model_manager = ModelManager()
 
 # STT Engine info
 if USE_VOSK and VOSK_AVAILABLE:
-    print(f"🎤 STT Engine: Vosk (non-AI, offline)")
+    print("🎤 STT Engine: Vosk (non-AI, offline)")
 else:
-    print(f"🎤 STT Engine: Wav2Vec2 (CTC-based, zero hallucination)")
+    print("🎤 STT Engine: Wav2Vec2 (CTC-based, zero hallucination)")
 
 # TTS Engine info
 if USE_NEURAL_TTS:
@@ -3622,7 +3622,7 @@ async def emit_tts_chunk(
             await websocket.send_json(
                 {"text": normalized, "audio": audio_b64, "status": "streaming"}
             )
-            print(f"📤 Audio sent successfully")
+            print("📤 Audio sent successfully")
         except Exception as e:
             print(f"❌ Failed to send audio: {e}")
             raise

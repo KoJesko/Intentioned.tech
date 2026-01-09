@@ -41,12 +41,19 @@
             padding: 0;
         }
 
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
-            min-height: 100vh;
             color: var(--text-primary);
             line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 30px; /* Space for fixed footer */
         }
 
         /* Header */
@@ -55,6 +62,7 @@
             border-bottom: 1px solid var(--border-color);
             padding: 24px 32px;
             text-align: center;
+            flex-shrink: 0;
         }
 
         .header h1 {
@@ -74,17 +82,29 @@
 
         /* Main Container */
         .container {
-            max-width: 1200px;
+            max-width: 1500px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 12px 20px;
             display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 24px;
+            grid-template-columns: 25% 75%;
+            grid-template-rows: 1fr;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            align-items: stretch;
         }
 
         @media (max-width: 900px) {
             .container {
                 grid-template-columns: 1fr;
+                padding: 12px;
+            }
+        }
+
+        @media (min-width: 1600px) {
+            .container {
+                max-width: 1600px;
             }
         }
 
@@ -93,13 +113,35 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            min-height: 0;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .sidebar .card {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1;
+            overflow: hidden;
+            height: 100%;
         }
 
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        
+        /* Scenario list fills available space */
+        .scenario-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
         }
 
         .card-title {
@@ -109,20 +151,215 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 12px;
+            flex-shrink: 0;
         }
 
-        /* Scenario Selector */
-        .scenario-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
         .loading-scenarios {
             padding: 20px;
             text-align: center;
             color: var(--text-muted);
             font-size: 0.85rem;
+        }
+
+        /* Category Dropdown */
+        .scenario-category {
+            background: var(--card-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            cursor: pointer;
+            background: var(--bg-tertiary);
+            transition: background 0.15s ease;
+        }
+
+        .category-header:hover {
+            background: var(--card-hover);
+        }
+
+        .category-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .category-arrow {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .category-header.expanded .category-arrow {
+            transform: rotate(180deg);
+        }
+
+        .category-content {
+            display: none;
+            padding: 8px;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .category-content.expanded {
+            display: flex;
+        }
+
+        /* Show All Button - fills remaining sidebar space */
+        .show-all-btn {
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            border: none;
+            border-radius: 8px;
+            padding: 16px 14px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+            min-height: 60px;
+            max-height: 100px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .show-all-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .show-all-btn .show-all-count {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        /* Gallery Modal */
+        .gallery-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1100;
+            padding: 20px;
+        }
+
+        .gallery-modal.active {
+            display: flex;
+        }
+
+        .gallery-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .gallery-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .gallery-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .gallery-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .gallery-close:hover {
+            color: var(--text-primary);
+        }
+
+        .gallery-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .gallery-category-section {
+            margin-bottom: 20px;
+        }
+
+        .gallery-category-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+        }
+
+        .gallery-scenario-btn {
+            background: var(--card-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-scenario-btn:hover {
+            background: var(--card-hover);
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .gallery-scenario-btn.active {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .gallery-scenario-btn .label {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .gallery-scenario-btn .desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
 
         .scenario-btn {
@@ -357,7 +594,7 @@
         .main-content {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            min-height: 0;
         }
 
         /* Chat Container */
@@ -368,7 +605,8 @@
             border-radius: 12px;
             display: flex;
             flex-direction: column;
-            min-height: 500px;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .chat-header {
@@ -377,6 +615,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .chat-header h2 {
@@ -528,6 +767,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            min-height: 0;
         }
 
         .message {
@@ -572,13 +812,14 @@
 
         /* VAD Status */
         .vad-status {
-            padding: 12px 20px;
+            padding: 8px 20px;
             border-top: 1px solid var(--border-color);
             font-size: 0.75rem;
             color: var(--text-muted);
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .vad-indicator {
@@ -592,6 +833,292 @@
         .vad-indicator.speaking {
             background: var(--success);
             box-shadow: 0 0 8px var(--success);
+        }
+
+        /* Inline Controls Bar */
+        .chat-controls-bar {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--card-secondary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .inline-mode-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .inline-mode-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .inline-mode-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .inline-mode-btn:hover:not(.active) {
+            color: var(--text-primary);
+            background: var(--card-hover);
+        }
+
+        .inline-control-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .inline-control-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            flex: 1;
+            max-width: 200px;
+        }
+
+        .inline-control-btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .inline-control-btn.secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .inline-control-btn.secondary:hover {
+            background: var(--card-hover);
+            color: var(--text-primary);
+        }
+
+        .inline-control-btn.danger {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: white;
+            padding: 10px 32px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .inline-control-btn.danger:hover {
+            background: #dc2626;
+        }
+
+        .inline-control-btn.warning {
+            background: #f59e0b;
+            border-color: #f59e0b;
+            color: white;
+            animation: pulse-warning 1s ease-in-out infinite;
+        }
+
+        .controls-spacer {
+            flex: 1;
+        }
+
+        @media (max-width: 768px) {
+            .chat-controls-bar {
+                justify-content: center;
+            }
+            .inline-control-btn.primary {
+                max-width: none;
+            }
+        }
+
+        /* Top Action Bar */
+        .top-action-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 8px 20px;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .quick-start-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            padding: 12px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .quick-start-text {
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .quick-start-text strong {
+            color: #fff;
+        }
+
+        .quick-start-steps {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85rem;
+        }
+
+        .quick-start-steps .step-arrow {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .top-action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .top-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+        }
+
+        .top-action-btn:hover {
+            background: var(--card-hover);
+            color: var(--text-primary);
+        }
+
+        .top-action-btn.btn-about {
+            background: var(--card-secondary);
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+
+        .top-action-btn.btn-about:hover {
+            background: rgba(6, 182, 212, 0.15);
+        }
+
+        .top-action-btn.btn-how-to-use {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: white;
+        }
+
+        .top-action-btn.btn-how-to-use:hover {
+            background: #4338ca;
+            border-color: #4338ca;
+        }
+
+        /* How to Use Collapsible */
+        .how-to-use-bar {
+            max-width: 1500px;
+            margin: 0 auto 8px auto;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+
+        .how-to-use-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+        }
+
+        .how-to-use-content.visible {
+            display: block;
+        }
+
+        /* Settings/Results Modal */
+        .slide-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            z-index: 1001;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .slide-panel.open {
+            right: 0;
+        }
+
+        .slide-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .slide-panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .slide-panel-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .slide-panel-close:hover {
+            color: var(--text-primary);
+        }
+
+        .panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+        }
+
+        .panel-overlay.visible {
+            display: block;
         }
 
         /* Analysis Modal */
@@ -1333,6 +1860,341 @@
         body.has-warning-banner .header {
             margin-top: 10px;
         }
+
+        /* ============================================
+           MOBILE RESPONSIVE STYLES
+           Portrait mode (height > width) optimizations
+           ============================================ */
+        
+        /* Mobile scenario button - shows on mobile */
+        .mobile-scenario-btn {
+            display: none;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .mobile-scenario-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Portrait/mobile layout */
+        @media (max-width: 768px), (orientation: portrait) and (max-width: 1024px) {
+            body {
+                padding-bottom: 35px;
+            }
+
+            .header {
+                padding: 8px 12px;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+                margin-bottom: 2px;
+            }
+
+            .header .subtitle {
+                font-size: 0.7rem;
+                display: none;
+            }
+
+            /* Hide sidebar on mobile - show via modal instead */
+            .sidebar {
+                display: none;
+            }
+
+            /* Show mobile scenario button */
+            .mobile-scenario-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            /* Full width main content */
+            .container {
+                grid-template-columns: 1fr;
+                padding: 8px;
+                gap: 8px;
+            }
+
+            /* Compact top action bar */
+            .top-action-bar {
+                flex-direction: column;
+                padding: 6px 12px;
+                gap: 8px;
+            }
+
+            /* Quick start takes half vertical - make it compact */
+            .quick-start-container {
+                flex-direction: column;
+                padding: 10px 14px;
+                gap: 6px;
+                width: 100%;
+                text-align: center;
+            }
+
+            .quick-start-text {
+                font-size: 0.85rem;
+            }
+
+            .quick-start-steps {
+                flex-wrap: wrap;
+                justify-content: center;
+                font-size: 0.75rem;
+                gap: 4px;
+            }
+
+            .quick-start-steps .step-arrow {
+                display: none;
+            }
+
+            .quick-start-steps span:not(.step-arrow)::after {
+                content: " → ";
+                color: rgba(255, 255, 255, 0.5);
+            }
+
+            .quick-start-steps span:not(.step-arrow):last-child::after {
+                content: "";
+            }
+
+            /* Top action buttons evenly spaced on mobile */
+            .top-action-buttons {
+                width: 100%;
+                justify-content: space-evenly;
+                flex-wrap: wrap;
+                display: flex;
+                gap: 6px;
+            }
+            
+            .top-action-btn {
+                padding: 8px 10px;
+                font-size: 0.7rem;
+                flex: 1;
+                min-width: 70px;
+                max-width: 100px;
+                text-align: center;
+            }
+
+            /* Main content needs flex layout for controls at bottom */
+            .main-content {
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Chat controls fixed at bottom on mobile */
+            .chat-controls-bar {
+                flex-wrap: wrap;
+                padding: 10px 12px;
+                gap: 6px;
+                border-radius: 0 !important;
+                position: fixed;
+                bottom: 35px; /* Above footer */
+                left: 0;
+                right: 0;
+                z-index: 100;
+                background: var(--card-bg);
+                border-top: 1px solid var(--border);
+            }
+            
+            /* Mode toggle full width */
+            .inline-mode-toggle {
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 4px;
+            }
+            
+            .inline-mode-btn {
+                flex: 1;
+                text-align: center;
+                padding: 10px 8px;
+                font-size: 0.75rem;
+            }
+            
+            /* Control buttons layout on mobile */
+            .inline-control-btn {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+                flex: 1;
+                min-width: 60px;
+            }
+            
+            /* End & Analyze button full width on mobile */
+            .inline-control-btn.danger {
+                width: 100%;
+                padding: 12px 16px;
+                font-size: 0.8rem;
+                order: 10;
+                flex: none;
+            }
+            
+            .controls-spacer {
+                display: none;
+            }
+            
+            /* Adjust chat container to account for fixed controls at bottom */
+            .chat-container {
+                margin-bottom: 160px; /* Space for fixed controls */
+            }
+
+            .inline-mode-toggle {
+                width: 100%;
+                justify-content: center;
+                margin-bottom: 4px;
+            }
+
+            .inline-mode-btn {
+                flex: 1;
+                text-align: center;
+                padding: 10px 8px;
+                font-size: 0.75rem;
+            }
+
+            .inline-control-btn {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .inline-control-btn.primary {
+                flex: 1;
+                max-width: none;
+            }
+
+            .controls-spacer {
+                display: none;
+            }
+
+            /* Chat header compact */
+            .chat-header {
+                padding: 10px 12px;
+            }
+
+            .chat-header h2 {
+                font-size: 0.8rem;
+            }
+
+            .status-badge {
+                padding: 4px 10px;
+                font-size: 0.65rem;
+            }
+
+            /* Chat messages */
+            .chat-messages {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .message {
+                max-width: 90%;
+                padding: 10px 12px;
+                font-size: 0.8rem;
+            }
+
+            /* VAD status */
+            .vad-status {
+                padding: 6px 12px;
+                font-size: 0.7rem;
+            }
+
+            /* Gallery modal full screen on mobile */
+            .gallery-modal {
+                padding: 10px;
+            }
+
+            .gallery-container {
+                max-height: 90vh;
+                width: 100%;
+            }
+
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gallery-scenario-btn {
+                padding: 12px;
+            }
+
+            /* Slide panels full width on mobile */
+            .slide-panel {
+                width: 100%;
+                right: -100%;
+            }
+
+            /* How to use content compact */
+            .how-to-use-bar {
+                padding: 0 12px;
+            }
+
+            .how-to-use-content {
+                padding: 10px 12px;
+            }
+
+            .how-to-use-content h4 {
+                font-size: 0.8rem;
+            }
+
+            .how-to-use-content ol {
+                font-size: 0.7rem;
+            }
+
+            /* Hide webcam card on mobile by default */
+            #webcamCard {
+                display: none !important;
+            }
+
+            /* Footer compact */
+            footer {
+                padding: 4px 8px !important;
+                font-size: 10px !important;
+            }
+
+            footer a {
+                margin: 0 4px !important;
+            }
+
+            footer span {
+                display: none;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .quick-start-container {
+                padding: 8px 10px;
+            }
+
+            .quick-start-text {
+                font-size: 0.8rem;
+            }
+
+            .top-action-btn {
+                padding: 6px 10px;
+                font-size: 0.7rem;
+            }
+
+            .inline-mode-btn {
+                font-size: 0.65rem;
+                padding: 6px 4px;
+            }
+
+            .inline-control-btn {
+                padding: 6px 8px;
+                font-size: 0.65rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1404,12 +2266,262 @@
         </div>
     </div>
 
-    <header class="header">
-        <h1>Intentioned: Master Every Connection</h1>
-        <p class="subtitle">Practice conversations, improve communication skills, and receive real-time feedback</p>
+    <header class="header" style="padding: 10px 20px; margin-top: 36px; max-width: 1500px; margin-left: auto; margin-right: auto;">
+        <h1 style="font-size: 1.4rem; margin-bottom: 2px;">Intentioned: Master Every Connection</h1>
+        <p class="subtitle" style="font-size: 0.8rem; margin-bottom: 0;">Practice conversations, improve communication skills, and receive real-time feedback</p>
     </header>
 
-    <div class="container">
+    <!-- Top Action Bar with Settings/Results buttons -->
+    <div class="top-action-bar" style="margin-top: 8px;">
+        <div class="quick-start-container">
+            <span class="quick-start-text">🚀 <strong>Quick Start:</strong></span>
+            <div class="quick-start-steps">
+                <span>Select scenario</span>
+                <span class="step-arrow">→</span>
+                <span>Choose mode</span>
+                <span class="step-arrow">→</span>
+                <span>Start speaking</span>
+                <span class="step-arrow">→</span>
+                <span>Get feedback</span>
+            </div>
+        </div>
+        <div class="top-action-buttons">
+            <button onclick="toggleHowToUse()" class="top-action-btn btn-how-to-use">
+                📖 How to Use
+            </button>
+            <button onclick="openSettingsPanel()" class="top-action-btn btn-settings">
+                ⚙️ Settings
+            </button>
+            <button onclick="openResultsPanel()" class="top-action-btn btn-saved-results">
+                📁 Saved Results
+            </button>
+            <button onclick="openAboutPanel()" class="top-action-btn btn-about">
+                ℹ️ About
+            </button>
+        </div>
+    </div>
+
+    <!-- How to Use Collapsible Section -->
+    <div class="how-to-use-bar">
+        <div id="howToUseContent" class="how-to-use-content">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">📖 How to Use Intentioned</h4>
+                    <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.8rem; line-height: 1.6;">
+                        <li><strong>Select a scenario</strong> from the sidebar to set the conversation context.</li>
+                        <li><strong>Choose your input mode:</strong> <em>Voice Activity</em> (auto-detects speech) or <em>Push-to-Talk</em> (click to record)</li>
+                        <li><strong>Click the Start button</strong> to begin the session.</li>
+                        <li><strong>Enable Webcam</strong> for eye contact tracking (optional).</li>
+                        <li><strong>Speak naturally</strong> - the AI will respond in real-time.</li>
+                        <li><strong>End the session</strong> to receive your detailed analysis report.</li>
+                    </ol>
+                </div>
+                <button onclick="toggleHowToUse()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 0;">×</button>
+            </div>
+            <div style="margin-top: 10px; padding: 8px 12px; background: var(--accent-light); border-radius: 6px; font-size: 0.75rem; color: var(--accent);">
+                💡 <strong>Tip:</strong> Keep eye contact with the camera for best results. Speak clearly and avoid long pauses.
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Gallery Modal -->
+    <div id="scenarioGallery" class="gallery-modal">
+        <div class="gallery-container">
+            <div class="gallery-header">
+                <span class="gallery-title">📚 All Training Scenarios</span>
+                <button class="gallery-close" onclick="closeScenarioGallery()">×</button>
+            </div>
+            <div class="gallery-body" id="galleryBody">
+                <!-- Scenarios will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Slide Panel -->
+    <div id="panelOverlay" class="panel-overlay" onclick="closePanels()"></div>
+    
+    <div id="settingsPanel" class="slide-panel">
+        <div class="slide-panel-header">
+            <span class="slide-panel-title">⚙️ Settings</span>
+            <button class="slide-panel-close" onclick="closePanels()">×</button>
+        </div>
+        <!-- TTS Settings -->
+        <div class="settings-section">
+            <label class="settings-label">Text-to-Speech Engine</label>
+            <select id="ttsEngineSelect" class="settings-select">
+                <option value="kokoro">Kokoro (82M, Fast)</option>
+                <option value="vibevoice">VibeVoice (500M, Neural)</option>
+                <option value="edge">Edge TTS (Online)</option>
+                <option value="pyttsx3">pyttsx3 (Offline)</option>
+            </select>
+        </div>
+        <div class="settings-section" id="kokoroVoiceSection">
+            <label class="settings-label">Kokoro Voice</label>
+            <select id="kokoroVoiceSelect" class="settings-select">
+                <option value="af_heart">Heart (Female, American)</option>
+                <option value="af_bella">Bella (Female, American)</option>
+                <option value="af_nicole">Nicole (Female, American)</option>
+                <option value="af_sarah">Sarah (Female, American)</option>
+                <option value="af_sky">Sky (Female, American)</option>
+                <option value="am_adam">Adam (Male, American)</option>
+                <option value="am_michael">Michael (Male, American)</option>
+                <option value="bf_emma">Emma (Female, British)</option>
+                <option value="bf_isabella">Isabella (Female, British)</option>
+                <option value="bm_george">George (Male, British)</option>
+                <option value="bm_lewis">Lewis (Male, British)</option>
+            </select>
+        </div>
+        <div class="settings-section" id="vibevoiceVoiceSection" style="display: none;">
+            <label class="settings-label">VibeVoice Voice</label>
+            <select id="vibevoiceVoiceSelect" class="settings-select"></select>
+        </div>
+        <div class="settings-section" id="edgeVoiceSection" style="display: none;">
+            <label class="settings-label">Edge TTS Voice</label>
+            <select id="edgeVoiceSelect" class="settings-select"></select>
+        </div>
+        <!-- STT Settings -->
+        <div class="settings-section">
+            <label class="settings-label">Speech-to-Text Engine</label>
+            <select id="sttEngineSelect" class="settings-select">
+                <option value="wav2vec2">Wav2Vec2 (Fast, Default)</option>
+                <option value="vosk">Vosk (Offline)</option>
+                <option value="parakeet">Parakeet TDT (Python 3.12 only)</option>
+            </select>
+        </div>
+        <!-- LLM Settings -->
+        <div class="settings-section">
+            <label class="settings-label">LLM Max Tokens</label>
+            <div class="settings-row">
+                <input type="range" id="maxTokensSlider" class="settings-slider" min="32" max="512" value="150">
+                <span class="slider-value" id="maxTokensValue">150</span>
+            </div>
+        </div>
+        <div class="settings-section">
+            <label class="settings-label">LLM Temperature</label>
+            <div class="settings-row">
+                <input type="range" id="temperatureSlider" class="settings-slider" min="0" max="100" value="70">
+                <span class="slider-value" id="temperatureValue">0.7</span>
+            </div>
+        </div>
+        <!-- Audio Feedback Settings -->
+        <div class="settings-section" style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 8px;">
+            <label class="settings-label">🔊 Audio Feedback</label>
+            <div class="settings-row" style="justify-content: space-between;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Sound Effects</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="audioFeedbackToggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="settings-row" style="justify-content: space-between; margin-top: 8px;">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Verbal Announcements</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="verbalFeedbackToggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        <button id="saveSettingsBtn" class="control-btn primary full-width" style="margin-top: 16px;">
+            💾 Save Settings
+        </button>
+    </div>
+
+    <!-- Saved Results Slide Panel -->
+    <div id="resultsPanel" class="slide-panel">
+        <div class="slide-panel-header">
+            <span class="slide-panel-title">📁 Saved Results</span>
+            <button class="slide-panel-close" onclick="closePanels()">×</button>
+        </div>
+        <div class="controls-grid" style="margin-bottom: 12px;">
+            <button id="refreshResultsBtn" class="control-btn secondary">🔄 Refresh</button>
+            <button id="exportAllBtn" class="control-btn secondary">📥 Export All</button>
+            <input type="file" id="importResultFile" accept=".csv" style="display: none;">
+            <button id="importResultBtn" class="control-btn secondary full-width" onclick="document.getElementById('importResultFile').click()">
+                📤 Import CSV
+            </button>
+        </div>
+        <div class="results-list" id="resultsList">
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px;">
+                No saved results yet
+            </div>
+        </div>
+    </div>
+
+    <!-- About Slide Panel -->
+    <div id="aboutPanel" class="slide-panel">
+        <div class="slide-panel-header">
+            <span class="slide-panel-title">ℹ️ About Intentioned</span>
+            <button class="slide-panel-close" onclick="closePanels()">×</button>
+        </div>
+        <div class="about-content" style="padding: 16px; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
+            <!-- VERSION INFO -->
+            <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">🚀 Version</h4>
+                <p style="margin: 0;">v1.0.0 (Beta)</p>
+            </div>
+            
+            <!-- DESCRIPTION -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">💬 What is Intentioned?</h4>
+                <p style="margin: 0;">
+                    <!-- TODO: Add your description here -->
+                    Intentioned is an AI-powered conversation practice platform designed to help you improve your communication skills through realistic scenarios and real-time feedback.
+                </p>
+            </div>
+            
+            <!-- FEATURES -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">✨ Key Features</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Real-time voice conversations with AI</li>
+                    <li>Multiple training scenarios</li>
+                    <li>Eye contact tracking (optional)</li>
+                    <li>Session analysis and feedback</li>
+                    <li>Achievement system</li>
+                    <!-- TODO: Add more features -->
+                </ul>
+            </div>
+            
+            <!-- TEAM/CREDITS -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">👥 Team</h4>
+                <p style="margin: 0;">
+                    <!-- TODO: Add team information -->
+                    Created by the Intentioned Team
+                </p>
+            </div>
+            
+            <!-- CONTACT -->
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">📧 Contact</h4>
+                <p style="margin: 0;">
+                    <!-- TODO: Add contact information -->
+                    For support or feedback, please visit our GitHub repository.
+                </p>
+            </div>
+            
+            <!-- LEGAL -->
+            <div style="margin-bottom: 20px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">📜 Legal</h4>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <a href="privacy_policy.html" target="_blank" style="color: var(--accent);">Privacy Policy</a>
+                    <a href="terms_of_use.html" target="_blank" style="color: var(--accent);">Terms of Use</a>
+                    <a href="code_of_conduct.html" target="_blank" style="color: var(--accent);">Code of Conduct</a>
+                </div>
+            </div>
+            
+            <!-- ACKNOWLEDGEMENTS -->
+            <div style="padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.9rem;">🙏 Acknowledgements</h4>
+                <p style="margin: 0;">
+                    <!-- TODO: Add acknowledgements -->
+                    Built with open-source technologies. See <a href="#" onclick="showCreditsModal(); return false;" style="color: var(--accent);">Credits & Third-Party Licenses</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" style="padding-top: 8px;">
         <!-- Sidebar -->
         <aside class="sidebar">
             <!-- Scenario Selection -->
@@ -1418,160 +2530,6 @@
                 <div class="scenario-list" id="scenarioList">
                     <!-- Scenarios loaded dynamically from config.json -->
                     <div class="loading-scenarios">Loading scenarios...</div>
-                </div>
-            </div>
-
-            <!-- Controls -->
-            <div class="card">
-                <h3 class="card-title">Input Mode</h3>
-                <div class="toggle-group" id="modeToggle">
-                    <button class="toggle-btn active" data-mode="vad">Voice Activity</button>
-                    <button class="toggle-btn" data-mode="ptt">Push-to-Talk</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">Controls</h3>
-                <div class="controls-grid">
-                    <button id="recordBtn" class="control-btn primary">
-                        🎤 Push to Start VAD
-                    </button>
-                    <button id="muteBtn" class="control-btn secondary">
-                        🔊 Mute AI
-                    </button>
-                    <button id="resetBtn" class="control-btn secondary">
-                        🔄 Reset
-                    </button>
-                    <button id="webcamBtn" class="control-btn secondary">
-                        📷 Webcam
-                    </button>
-                    <button id="endSessionBtn" class="control-btn danger full-width">
-                        📊 End Session & Analyze
-                    </button>
-                </div>
-            </div>
-
-            <!-- Settings -->
-            <div class="card">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3 class="card-title" style="margin-bottom: 0;">⚙️ Settings</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <!-- TTS Settings -->
-                    <div class="settings-section">
-                        <label class="settings-label">Text-to-Speech Engine</label>
-                        <select id="ttsEngineSelect" class="settings-select">
-                            <option value="kokoro">Kokoro (82M, Fast)</option>
-                            <option value="vibevoice">VibeVoice (500M, Neural)</option>
-                            <option value="edge">Edge TTS (Online)</option>
-                            <option value="pyttsx3">pyttsx3 (Offline)</option>
-                        </select>
-                    </div>
-
-                    <div class="settings-section" id="kokoroVoiceSection">
-                        <label class="settings-label">Kokoro Voice</label>
-                        <select id="kokoroVoiceSelect" class="settings-select">
-                            <option value="af_heart">Heart (Female, American)</option>
-                            <option value="af_bella">Bella (Female, American)</option>
-                            <option value="af_nicole">Nicole (Female, American)</option>
-                            <option value="af_sarah">Sarah (Female, American)</option>
-                            <option value="af_sky">Sky (Female, American)</option>
-                            <option value="am_adam">Adam (Male, American)</option>
-                            <option value="am_michael">Michael (Male, American)</option>
-                            <option value="bf_emma">Emma (Female, British)</option>
-                            <option value="bf_isabella">Isabella (Female, British)</option>
-                            <option value="bm_george">George (Male, British)</option>
-                            <option value="bm_lewis">Lewis (Male, British)</option>
-                        </select>
-                    </div>
-
-                    <div class="settings-section" id="vibevoiceVoiceSection" style="display: none;">
-                        <label class="settings-label">VibeVoice Voice</label>
-                        <select id="vibevoiceVoiceSelect" class="settings-select">
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <div class="settings-section" id="edgeVoiceSection" style="display: none;">
-                        <label class="settings-label">Edge TTS Voice</label>
-                        <select id="edgeVoiceSelect" class="settings-select">
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <!-- STT Settings -->
-                    <div class="settings-section">
-                        <label class="settings-label">Speech-to-Text Engine</label>
-                        <select id="sttEngineSelect" class="settings-select">
-                            <option value="wav2vec2">Wav2Vec2 (Fast, Default)</option>
-                            <option value="vosk">Vosk (Offline)</option>
-                            <option value="parakeet">Parakeet TDT (Python 3.12 only)</option>
-                        </select>
-                    </div>
-
-                    <!-- LLM Settings -->
-                    <div class="settings-section">
-                        <label class="settings-label">LLM Max Tokens</label>
-                        <div class="settings-row">
-                            <input type="range" id="maxTokensSlider" class="settings-slider" min="32" max="512" value="150">
-                            <span class="slider-value" id="maxTokensValue">150</span>
-                        </div>
-                    </div>
-
-                    <div class="settings-section">
-                        <label class="settings-label">LLM Temperature</label>
-                        <div class="settings-row">
-                            <input type="range" id="temperatureSlider" class="settings-slider" min="0" max="100" value="70">
-                            <span class="slider-value" id="temperatureValue">0.7</span>
-                        </div>
-                    </div>
-
-                    <!-- Audio Feedback Settings -->
-                    <div class="settings-section" style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 8px;">
-                        <label class="settings-label">🔊 Audio Feedback</label>
-                        <div class="settings-row" style="justify-content: space-between;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Sound Effects</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="audioFeedbackToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="settings-row" style="justify-content: space-between; margin-top: 8px;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Verbal Announcements</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="verbalFeedbackToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <button id="saveSettingsBtn" class="control-btn primary full-width" style="margin-top: 12px;">
-                        💾 Save Settings
-                    </button>
-                </div>
-            </div>
-
-            <!-- Session Results -->
-            <div class="card">
-                <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                    <h3 class="card-title" style="margin-bottom: 0;">📁 Saved Results</h3>
-                    <span class="collapse-icon">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="controls-grid" style="margin-bottom: 8px;">
-                        <button id="refreshResultsBtn" class="control-btn secondary">🔄 Refresh</button>
-                        <button id="exportAllBtn" class="control-btn secondary">📥 Export All</button>
-                        <input type="file" id="importResultFile" accept=".csv" style="display: none;">
-                        <button id="importResultBtn" class="control-btn secondary full-width" onclick="document.getElementById('importResultFile').click()">
-                            📤 Import CSV
-                        </button>
-                    </div>
-                    <div class="results-list" id="resultsList">
-                        <div style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px;">
-                            No saved results yet
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -1588,32 +2546,42 @@
                     </div>
                 </div>
             </div>
-
-            <!-- How to Use Instructions -->
-            <div class="card">
-                <h3 class="card-title">📖 How to Use</h3>
-                <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.7;">
-                    <li><strong>Select a scenario</strong> above to set the conversation context.</li>
-                    <li><strong>Choose your input mode:</strong>
-                        <ul style="margin: 4px 0 8px 0; padding-left: 16px;">
-                            <li><em>Voice Activity</em> - Auto-detects when you speak</li>
-                            <li><em>Push-to-Talk</em> - Hold to record</li>
-                        </ul>
-                    </li>
-                    <li><strong>Click 🎤 Record</strong> to start the session.</li>
-                    <li><strong>Enable 📷 Webcam</strong> for eye contact tracking (optional).</li>
-                    <li><strong>Speak naturally</strong> - the AI will respond.</li>
-                    <li><strong>End the session</strong> to see your analysis report.</li>
-                </ol>
-                <div style="margin-top: 12px; padding: 10px; background: var(--accent-light); border-radius: 6px; font-size: 0.8rem; color: var(--accent);">
-                    💡 <strong>Tip:</strong> Keep eye contact with the camera for best results. Speak clearly and avoid long pauses.
-                </div>
-            </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
-            <div class="chat-container">
+            <!-- Mobile Scenario Button (visible only on mobile/portrait) -->
+            <button class="mobile-scenario-btn" onclick="openScenarioGallery()">
+                📚 Select Scenario
+            </button>
+            
+            <!-- Top Controls Bar -->
+            <div class="chat-controls-bar" style="border-radius: 8px 8px 0 0; border-bottom: none;">
+                <div class="inline-mode-toggle" id="modeToggle">
+                    <button class="inline-mode-btn active" data-mode="vad">🎙️ Voice Activity</button>
+                    <button class="inline-mode-btn" data-mode="ptt">👆 Push-to-Talk</button>
+                </div>
+                <button id="recordBtn" class="inline-control-btn primary">
+                    🎤 Start
+                </button>
+                <button id="resetBtn" class="inline-control-btn secondary">
+                    🔄 Reset
+                </button>
+                <button id="muteMicBtn" class="inline-control-btn secondary">
+                    🎤 Mic On
+                </button>
+                <button id="muteBtn" class="inline-control-btn secondary">
+                    🔊 AI On
+                </button>
+                <button id="webcamBtn" class="inline-control-btn secondary">
+                    📷 Cam Off
+                </button>
+                <div class="controls-spacer"></div>
+                <button id="endSessionBtn" class="inline-control-btn danger">
+                    📊 End & Analyze
+                </button>
+            </div>
+            <div class="chat-container" style="border-radius: 0 0 8px 8px;">
                 <div class="chat-header">
                     <h2>Conversation</h2>
                     <div style="display: flex; align-items: center;">
@@ -1840,6 +2808,38 @@
             if (e.target === this) hideCreditsModal();
         });
 
+        // --- Slide Panel Management ---
+        function openSettingsPanel() {
+            document.getElementById('settingsPanel').classList.add('open');
+            document.getElementById('panelOverlay').classList.add('visible');
+        }
+
+        function openResultsPanel() {
+            document.getElementById('resultsPanel').classList.add('open');
+            document.getElementById('panelOverlay').classList.add('visible');
+            // Trigger refresh of results
+            if (typeof loadSavedResults === 'function') {
+                loadSavedResults();
+            }
+        }
+
+        function openAboutPanel() {
+            document.getElementById('aboutPanel').classList.add('open');
+            document.getElementById('panelOverlay').classList.add('visible');
+        }
+
+        function closePanels() {
+            document.getElementById('settingsPanel').classList.remove('open');
+            document.getElementById('resultsPanel').classList.remove('open');
+            document.getElementById('aboutPanel').classList.remove('open');
+            document.getElementById('panelOverlay').classList.remove('visible');
+        }
+
+        function toggleHowToUse() {
+            const content = document.getElementById('howToUseContent');
+            content.classList.toggle('visible');
+        }
+
         // --- Settings Management ---
         function toggleCollapsible(header) {
             const content = header.nextElementSibling;
@@ -1864,12 +2864,15 @@
             
             // Scenario selection is restored in loadScenarios() after dynamic load
             
-            // Restore mic mode from cookie
-            if (cookieSettings.mic_mode) {
-                document.querySelectorAll('#modeToggle .toggle-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.mode === cookieSettings.mic_mode);
-                });
-            }
+            // Restore mic mode from cookie - ensure one button is always active
+            const savedMode = cookieSettings.mic_mode || 'vad';
+            document.querySelectorAll('#modeToggle .inline-mode-btn').forEach(btn => {
+                if (btn.dataset.mode === savedMode) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
             
             updateVoiceSections();
             
@@ -1957,7 +2960,7 @@
         // Their event listeners are attached in attachScenarioListeners()
 
         // Save mic mode to cookie when changed
-        document.querySelectorAll('#modeToggle .toggle-btn').forEach(btn => {
+        document.querySelectorAll('#modeToggle .inline-mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 CookieManager.set('intentioned_mic_mode', btn.dataset.mode);
             });
@@ -2071,15 +3074,54 @@
             loadScenarios();
         });
         
+        // Reload scenarios on window resize (debounced)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (allScenarios.length > 0) {
+                    loadScenarios();
+                }
+            }, 250);
+        });
+        
+        // Store scenarios and categories globally for gallery
+        let allScenarios = [];
+        let allCategories = [];
+        
+        // Calculate max visible items based on sidebar card height (reserve space for Show All button)
+        function getMaxVisibleItems() {
+            const sidebar = document.querySelector('.sidebar .card');
+            if (!sidebar) return 6; // Default fallback
+            
+            // Get card height minus title (~40px) and Show All button (~80px) and padding (~30px)
+            const cardHeight = sidebar.clientHeight;
+            const reservedSpace = 150; // Title + Show All button + padding
+            const availableHeight = cardHeight - reservedSpace;
+            
+            // Each scenario button is approximately 70px tall with gap
+            const itemHeight = 78; // 70px button + 8px gap
+            const maxItems = Math.floor(availableHeight / itemHeight);
+            
+            return Math.max(3, Math.min(maxItems, 10)); // At least 3, at most 10
+        }
+        
         // Load scenarios from server config
         async function loadScenarios() {
             const container = document.getElementById('scenarioList');
             if (!container) return;
             
+            const MAX_VISIBLE_ITEMS = getMaxVisibleItems();
+            
             try {
                 const response = await fetch('/api/scenarios');
                 const data = await response.json();
                 const scenarios = data.scenarios || [];
+                const categories = data.categories || [];
+                
+                // Store globally for gallery
+                allScenarios = scenarios;
+                allCategories = categories;
                 
                 if (scenarios.length === 0) {
                     container.innerHTML = '<div class="loading-scenarios">No scenarios available</div>';
@@ -2089,24 +3131,85 @@
                 // Get saved scenario from cookie
                 const savedScenario = CookieManager.get('intentioned_scenario') || 'general';
                 
-                // Build scenario buttons HTML
-                let html = '';
+                // Group scenarios by category
+                const scenariosByCategory = {};
+                const uncategorized = [];
+                
                 scenarios.forEach(scenario => {
-                    const isActive = scenario.id === savedScenario || 
-                                     (savedScenario === 'parent-teacher-reversed' && scenario.id === 'parent-teacher-reversed');
-                    
-                    html += `
-                        <button class="scenario-btn ${isActive ? 'active' : ''}" data-scenario="${scenario.id}">
-                            <span class="label">${scenario.icon} ${scenario.name}</span>
-                            <span class="desc">${scenario.description}</span>
-                        </button>
-                    `;
+                    const cat = scenario.category || 'general-talks';
+                    if (!scenariosByCategory[cat]) {
+                        scenariosByCategory[cat] = [];
+                    }
+                    scenariosByCategory[cat].push(scenario);
                 });
+                
+                // Build category dropdowns HTML
+                let html = '';
+                let totalVisible = 0;
+                let needsShowMore = false;
+                
+                // If no categories defined, fall back to flat list (limit to MAX_VISIBLE_ITEMS)
+                if (categories.length === 0) {
+                    const visibleCount = Math.min(scenarios.length, MAX_VISIBLE_ITEMS);
+                    scenarios.slice(0, visibleCount).forEach((scenario) => {
+                        const isActive = scenario.id === savedScenario;
+                        html += `
+                            <button class="scenario-btn ${isActive ? 'active' : ''}" data-scenario="${scenario.id}">
+                                <span class="label">${scenario.icon} ${scenario.name}</span>
+                                <span class="desc">${scenario.description}</span>
+                            </button>
+                        `;
+                    });
+                } else {
+                    // Build category dropdowns
+                    categories.forEach(cat => {
+                        const catScenarios = scenariosByCategory[cat.id] || [];
+                        if (catScenarios.length === 0) return;
+                        
+                        const isExpanded = cat.expanded || false;
+                        const hasActiveScenario = catScenarios.some(s => s.id === savedScenario);
+                        const shouldExpand = isExpanded || hasActiveScenario;
+                        
+                        html += `
+                            <div class="scenario-category" data-category="${cat.id}">
+                                <div class="category-header ${shouldExpand ? 'expanded' : ''}" onclick="toggleCategory(this)">
+                                    <span class="category-title">${cat.icon} ${cat.name} <span style="color: var(--text-muted); font-weight: 400;">(${catScenarios.length})</span></span>
+                                    <span class="category-arrow">▼</span>
+                                </div>
+                                <div class="category-content ${shouldExpand ? 'expanded' : ''}">
+                        `;
+                        
+                        catScenarios.forEach(scenario => {
+                            const isActive = scenario.id === savedScenario;
+                            html += `
+                                <button class="scenario-btn ${isActive ? 'active' : ''}" data-scenario="${scenario.id}">
+                                    <span class="label">${scenario.icon} ${scenario.name}</span>
+                                    <span class="desc">${scenario.description}</span>
+                                </button>
+                            `;
+                        });
+                        
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Always add Show All button at the end to fill remaining space
+                const totalScenarios = scenarios.length;
+                html += `<button class="show-all-btn" onclick="openScenarioGallery()">
+                    <span>📚 Show All Scenarios</span>
+                    <span class="show-all-count">${totalScenarios} available</span>
+                </button>`;
                 
                 container.innerHTML = html;
                 
                 // Attach event listeners to new buttons
                 attachScenarioListeners();
+                
+                // Also populate the gallery
+                populateGallery();
                 
             } catch (err) {
                 console.error('Failed to load scenarios:', err);
@@ -2114,18 +3217,119 @@
             }
         }
         
+        // Toggle category dropdown
+        function toggleCategory(header) {
+            header.classList.toggle('expanded');
+            header.nextElementSibling.classList.toggle('expanded');
+        }
+        
+        // Open scenario gallery modal
+        function openScenarioGallery() {
+            document.getElementById('scenarioGallery').classList.add('active');
+        }
+        
+        // Close scenario gallery modal
+        function closeScenarioGallery() {
+            document.getElementById('scenarioGallery').classList.remove('active');
+        }
+        
+        // Populate the gallery modal with all scenarios
+        function populateGallery() {
+            const galleryBody = document.getElementById('galleryBody');
+            if (!galleryBody) return;
+            
+            const savedScenario = CookieManager.get('intentioned_scenario') || 'general';
+            let html = '';
+            
+            if (allCategories.length === 0) {
+                // No categories, show flat grid
+                html += '<div class="gallery-grid">';
+                allScenarios.forEach(scenario => {
+                    const isActive = scenario.id === savedScenario;
+                    html += `
+                        <button class="gallery-scenario-btn ${isActive ? 'active' : ''}" data-scenario="${scenario.id}" onclick="selectGalleryScenario('${scenario.id}')">
+                            <span class="label">${scenario.icon} ${scenario.name}</span>
+                            <span class="desc">${scenario.description}</span>
+                        </button>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                // Group by category
+                const scenariosByCategory = {};
+                allScenarios.forEach(scenario => {
+                    const cat = scenario.category || 'general-talks';
+                    if (!scenariosByCategory[cat]) {
+                        scenariosByCategory[cat] = [];
+                    }
+                    scenariosByCategory[cat].push(scenario);
+                });
+                
+                allCategories.forEach(cat => {
+                    const catScenarios = scenariosByCategory[cat.id] || [];
+                    if (catScenarios.length === 0) return;
+                    
+                    html += `
+                        <div class="gallery-category-section">
+                            <div class="gallery-category-title">${cat.icon} ${cat.name}</div>
+                            <div class="gallery-grid">
+                    `;
+                    
+                    catScenarios.forEach(scenario => {
+                        const isActive = scenario.id === savedScenario;
+                        html += `
+                            <button class="gallery-scenario-btn ${isActive ? 'active' : ''}" data-scenario="${scenario.id}" onclick="selectGalleryScenario('${scenario.id}')">
+                                <span class="label">${scenario.icon} ${scenario.name}</span>
+                                <span class="desc">${scenario.description}</span>
+                            </button>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            galleryBody.innerHTML = html;
+        }
+        
+        // Select a scenario from gallery
+        function selectGalleryScenario(scenarioId) {
+            // Update all buttons (sidebar and gallery)
+            document.querySelectorAll('.scenario-btn, .gallery-scenario-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll(`[data-scenario="${scenarioId}"]`).forEach(b => b.classList.add('active'));
+            
+            CookieManager.set('intentioned_scenario', scenarioId);
+            
+            // Dispatch event for script.js to handle
+            window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { scenario: scenarioId } }));
+            
+            // Close gallery
+            closeScenarioGallery();
+        }
+        
+        // Close gallery on click outside
+        document.getElementById('scenarioGallery')?.addEventListener('click', function(e) {
+            if (e.target === this) closeScenarioGallery();
+        });
+        
         // Attach click listeners to scenario buttons
         function attachScenarioListeners() {
             document.querySelectorAll('.scenario-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.scenario-btn, .gallery-scenario-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     
-                    const scenario = btn.dataset.scenario;
-                    CookieManager.set('intentioned_scenario', scenario);
+                    // Also update gallery buttons
+                    const scenarioId = btn.dataset.scenario;
+                    document.querySelectorAll(`.gallery-scenario-btn[data-scenario="${scenarioId}"]`).forEach(b => b.classList.add('active'));
+                    
+                    CookieManager.set('intentioned_scenario', scenarioId);
                     
                     // Dispatch event for script.js to handle
-                    window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { scenario } }));
+                    window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { scenario: scenarioId } }));
                 });
             });
         }

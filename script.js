@@ -514,6 +514,30 @@ const Haptics = {
         if (Haptics.isSupported()) {
             navigator.vibrate(40);
         }
+    },
+    
+    // Liquid/wave vibration for analysis - continuous engagement
+    _analysisInterval: null,
+    startAnalysisVibration: () => {
+        if (!Haptics.isSupported()) return;
+        // Create smooth wave-like vibration pattern
+        const liquidPattern = () => {
+            // Gentle wave: soft pulse, pause, medium, pause, soft
+            navigator.vibrate([15, 100, 25, 120, 20, 100, 30, 110, 15, 150]);
+        };
+        liquidPattern();
+        // Repeat every 800ms for continuous liquid feel
+        Haptics._analysisInterval = setInterval(liquidPattern, 800);
+    },
+    
+    stopAnalysisVibration: () => {
+        if (Haptics._analysisInterval) {
+            clearInterval(Haptics._analysisInterval);
+            Haptics._analysisInterval = null;
+        }
+        if (Haptics.isSupported()) {
+            navigator.vibrate(0); // Stop any ongoing vibration
+        }
     }
 };
 
@@ -692,10 +716,21 @@ const AchievementSystem = {
     },
     
     // Check for new achievements after a session
+    // Requires at least 10 user exchanges to be eligible for achievements
     checkAchievements(results) {
         const stats = this.getStats();
         const unlocked = this.getUnlocked();
         const newAchievements = [];
+        
+        // Check if user had enough exchanges (10+) to earn achievements
+        const userExchangeCount = results.transcript?.filter(msg => msg.role === 'user').length || 0;
+        if (userExchangeCount < 10) {
+            console.log(`Achievement check skipped: only ${userExchangeCount} user exchanges (need 10+)`);
+            // Still update stats but don't award achievements
+            stats.totalSessions++;
+            this.saveStats(stats);
+            return newAchievements; // Return empty array
+        }
         
         // Update stats
         stats.totalSessions++;
@@ -920,6 +955,7 @@ const statusBadge = document.getElementById('statusBadge');
 const recordBtn = document.getElementById('recordBtn');
 const chatLog = document.getElementById('chatLog');
 const muteBtn = document.getElementById('muteBtn');
+const muteMicBtn = document.getElementById('muteMicBtn');
 const resetBtn = document.getElementById('resetBtn');
 const webcamBtn = document.getElementById('webcamBtn');
 const vadStatusEl = document.getElementById('vadStatusText');
@@ -1288,13 +1324,13 @@ function setupUI() {
         });
     }
 
-    // Mode toggle buttons (VAD vs PTT)
+    // Mode toggle buttons (VAD vs PTT) - now using inline-mode-btn class
     const modeToggle = document.getElementById('modeToggle');
     if (modeToggle) {
-        modeToggle.querySelectorAll('.toggle-btn').forEach(btn => {
+        modeToggle.querySelectorAll('.inline-mode-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const mode = btn.dataset.mode;
-                modeToggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                modeToggle.querySelectorAll('.inline-mode-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
                 if (mode === 'vad') {
@@ -1309,14 +1345,23 @@ function setupUI() {
         });
     }
 
-    // Mute button
+    // Mute button (AI audio)
     if (muteBtn) {
         muteBtn.addEventListener('click', toggleMute);
     }
+    
+    // Mute mic button
+    if (muteMicBtn) {
+        muteMicBtn.addEventListener('click', toggleMicMute);
+    }
 
-    // Reset button
+    // Reset button with confirmation
     if (resetBtn) {
-        resetBtn.addEventListener('click', startNewSession);
+        resetBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset the session? This will clear all conversation history.')) {
+                startNewSession();
+            }
+        });
     }
 
     // Webcam button
@@ -1333,11 +1378,15 @@ function setupUI() {
         console.log(`Scenario changed to: ${scenario}`);
     });
     
-    // End Session button
+    // End Session button with confirmation
     const endSessionBtn = document.getElementById('endSessionBtn');
     console.log('End Session Button found:', endSessionBtn);
     if (endSessionBtn) {
-        endSessionBtn.addEventListener('click', endSessionAndAnalyze);
+        endSessionBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to end the session and analyze your conversation?')) {
+                endSessionAndAnalyze();
+            }
+        });
         console.log('End Session click listener attached');
     } else {
         console.error('End Session Button NOT FOUND!');
@@ -1371,14 +1420,29 @@ function setupUI() {
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Toggle mute function
+// Toggle mute function (AI audio)
 let isMuted = false;
 function toggleMute() {
     isMuted = !isMuted;
     if (muteBtn) {
-        muteBtn.textContent = isMuted ? '🔇 Unmute AI' : '🔊 Mute AI';
+        muteBtn.textContent = isMuted ? '🔇 AI Off' : '🔊 AI On';
     }
     sendControlMessage({ mute: isMuted });
+}
+
+// Toggle mic mute function
+let isMicMuted = false;
+function toggleMicMute() {
+    isMicMuted = !isMicMuted;
+    if (muteMicBtn) {
+        muteMicBtn.textContent = isMicMuted ? '🔇 Mic Off' : '🎤 Mic On';
+    }
+    // Mute the actual microphone stream
+    if (activeStream) {
+        activeStream.getAudioTracks().forEach(track => {
+            track.enabled = !isMicMuted;
+        });
+    }
 }
 
 // Toggle webcam function
@@ -1429,15 +1493,15 @@ function updateStatus(text, state = 'default') {
 
 function updateRecordButtonForMode() {
     if (!recordBtn) return;
-
+    
     if (inputMode === MODES.PTT) {
         recordBtn.disabled = false;
         if (isRecording) {
-            recordBtn.innerHTML = '🔴 Recording... (Push to Stop)';
+            recordBtn.innerHTML = '🔴 Recording...';
             recordBtn.classList.remove('primary');
             recordBtn.classList.add('danger');
         } else {
-            recordBtn.innerHTML = '🎤 Push to Start';
+            recordBtn.innerHTML = '🎤 Start';
             recordBtn.classList.remove('danger');
             recordBtn.classList.add('primary');
         }
@@ -1445,15 +1509,15 @@ function updateRecordButtonForMode() {
         // VAD mode - button is enabled for toggle with delay
         recordBtn.disabled = false;
         if (vadCountdownActive) {
-            recordBtn.innerHTML = `⏳ Starting in ${vadCountdownSeconds}s...`;
+            recordBtn.innerHTML = `⏳ ${vadCountdownSeconds}s...`;
             recordBtn.classList.remove('primary', 'danger');
             recordBtn.classList.add('warning');
         } else if (vadRecording || vadStream) {
-            recordBtn.innerHTML = '🛑 Push to Stop VAD';
+            recordBtn.innerHTML = '🛑 Stop VAD';
             recordBtn.classList.remove('primary', 'warning');
             recordBtn.classList.add('danger');
         } else {
-            recordBtn.innerHTML = '🎤 Push to Start VAD';
+            recordBtn.innerHTML = '🎤 Start VAD';
             recordBtn.classList.remove('danger', 'warning');
             recordBtn.classList.add('primary');
         }
@@ -1935,7 +1999,7 @@ async function enableWebcam() {
         eyeContactData = [];
         
         if (webcamBtn) {
-            webcamBtn.textContent = '📷 Disable Webcam';
+            webcamBtn.textContent = '📷 Cam On';
         }
         
         // Try to load face-api for real detection
@@ -1965,7 +2029,7 @@ async function enableWebcam() {
         webcamEnabled = false;
         webcamActive = false;
         if (webcamBtn) {
-            webcamBtn.textContent = '📷 Webcam';
+            webcamBtn.textContent = '📷 Cam Off';
         }
         alert('Could not access webcam. Please ensure camera permissions are granted.');
     }
@@ -2046,7 +2110,7 @@ function disableWebcam() {
     webcamActive = false;
     
     if (webcamBtn) {
-        webcamBtn.textContent = '📷 Webcam';
+        webcamBtn.textContent = '📷 Cam Off';
     }
 }
 
@@ -2055,9 +2119,38 @@ async function endSessionAndAnalyze() {
     console.log('=== endSessionAndAnalyze CALLED ===');
     console.log('Ending session and analyzing...');
     
+    // Count user messages
+    const userMessageCount = conversationTranscript.filter(msg => msg.role === 'user').length;
+    console.log('User message count:', userMessageCount);
+    
+    // Require at least 5 user messages to analyze
+    if (userMessageCount < 5) {
+        const modal = document.getElementById('analysisModal');
+        const contentEl = document.getElementById('analysisContent');
+        modal.classList.add('active');
+        contentEl.innerHTML = `
+            <div class="loading" style="text-align: center;">
+                <span style="font-size: 3rem; display: block; margin-bottom: 16px;">💬</span>
+                <span style="color: var(--warning); font-size: 1.1rem; font-weight: 500;">Not enough conversation data</span>
+                <p style="color: var(--text-secondary); margin-top: 12px; font-size: 0.9rem;">
+                    Please have at least 5 exchanges before ending the session.<br>
+                    Current: ${userMessageCount} message${userMessageCount !== 1 ? 's' : ''} from you.
+                </p>
+                <button onclick="document.getElementById('analysisModal').classList.remove('active')" 
+                        style="margin-top: 20px; padding: 10px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">
+                    Continue Practicing
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
     // Show modal with enhanced loading state
     const modal = document.getElementById('analysisModal');
     const contentEl = document.getElementById('analysisContent');
+    
+    // Start liquid vibration for engagement during analysis
+    Haptics.startAnalysisVibration();
     
     modal.classList.add('active');
     
@@ -2136,6 +2229,9 @@ async function endSessionAndAnalyze() {
         
         const results = await response.json();
         
+        // Add transcript to results for achievement checking
+        results.transcript = conversationTranscript;
+        
         // Check and award achievements
         const newAchievements = AchievementSystem.checkAchievements(results);
         
@@ -2144,7 +2240,8 @@ async function endSessionAndAnalyze() {
         document.getElementById('step-achievements')?.classList.add('complete');
         document.getElementById('step-achievements')?.classList.remove('active');
         
-        // Play completion sound and haptic
+        // Stop liquid vibration and play completion sound/haptic
+        Haptics.stopAnalysisVibration();
         StatusSounds.analysisComplete();
         Haptics.success();
         
@@ -2153,6 +2250,8 @@ async function endSessionAndAnalyze() {
         
     } catch (error) {
         console.error('Analysis failed:', error);
+        Haptics.stopAnalysisVibration();
+        Haptics.error();
         contentEl.innerHTML = `
             <div class="loading">
                 <span style="color: var(--danger);">❌ Analysis failed. Please try again.</span>
