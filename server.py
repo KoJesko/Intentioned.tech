@@ -75,20 +75,20 @@ def _check_ffmpeg():
 _check_ffmpeg()
 
 
+import ast
 import asyncio
 import base64
+import functools
 import io
 import json
 import re
 import tempfile
 import wave
-import ast
 from collections import Counter  # noqa: E402
-from difflib import SequenceMatcher
-from threading import Thread, Lock
-from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
-import functools
+from difflib import SequenceMatcher
+from threading import Lock, Thread
+from typing import Optional
 
 # --- Violation Tracking for Repeated Offense Detection ---
 # Stores recent violations per session to detect repeated similar violations
@@ -108,6 +108,7 @@ import soundfile as sf
 # pyttsx3 for offline TTS (optional, fallback)
 try:
     import pyttsx3
+
     PYTTSX3_AVAILABLE = True
 except (ImportError, Exception) as e:
     PYTTSX3_AVAILABLE = False
@@ -116,11 +117,11 @@ except (ImportError, Exception) as e:
 import torch
 from fastapi import (
     FastAPI,
-    WebSocket,
-    WebSocketDisconnect,
+    File,
     HTTPException,
     UploadFile,
-    File,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -128,16 +129,16 @@ from pydantic import BaseModel
 
 # Vosk for non-AI speech recognition (optional, falls back to Whisper if not available)
 try:
-    from vosk import Model as VoskModel, KaldiRecognizer
+    from vosk import Model as VoskModel
 
     VOSK_AVAILABLE = True
 except ImportError:
     VOSK_AVAILABLE = False
     print("⚠️ Vosk not installed. Will use Whisper for STT.")
 
+from transformers.generation.streamers import TextIteratorStreamer
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 from transformers.models.auto.tokenization_auto import AutoTokenizer
-from transformers.generation.streamers import TextIteratorStreamer
 from transformers.pipelines import pipeline
 
 # Initialize the App
@@ -150,11 +151,12 @@ def load_config_file() -> dict:
     config_path = PROJECT_ROOT / "config.json"
     if config_path.exists():
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"⚠️ Failed to load config.json: {e}")
     return {}
+
 
 # Load config once at startup
 _CONFIG = load_config_file()
@@ -169,22 +171,33 @@ class RuntimeConfig:
     def __init__(self):
         # Get config sections with defaults
         models_cfg = _CONFIG.get("models", {})
-        
+
         # TTS Settings - kokoro is default for Python 3.12
         self.tts_engine = os.getenv(
             "TTS_ENGINE", models_cfg.get("tts_engine", "kokoro")
         )  # kokoro, vibevoice, edge, pyttsx3
-        self.kokoro_voice = os.getenv("KOKORO_VOICE", models_cfg.get("kokoro_voice", "af_heart"))
-        self.vibevoice_voice = os.getenv("VIBEVOICE_VOICE", models_cfg.get("vibevoice_voice", "en-Grace_woman"))
-        self.edge_tts_voice = os.getenv("EDGE_TTS_VOICE", models_cfg.get("edge_tts_voice", "female_us"))
+        self.kokoro_voice = os.getenv(
+            "KOKORO_VOICE", models_cfg.get("kokoro_voice", "af_heart")
+        )
+        self.vibevoice_voice = os.getenv(
+            "VIBEVOICE_VOICE", models_cfg.get("vibevoice_voice", "en-Grace_woman")
+        )
+        self.edge_tts_voice = os.getenv(
+            "EDGE_TTS_VOICE", models_cfg.get("edge_tts_voice", "female_us")
+        )
 
         # STT Settings - parakeet is default for Python 3.12 (requires NeMo)
-        self.stt_engine = os.getenv("STT_ENGINE", models_cfg.get("stt_engine", "parakeet"))  # parakeet, wav2vec2, vosk
+        self.stt_engine = os.getenv(
+            "STT_ENGINE", models_cfg.get("stt_engine", "parakeet")
+        )  # parakeet, wav2vec2, vosk
 
         # LLM Settings
-        self.llm_max_tokens = int(os.getenv("LLM_MAX_NEW_TOKENS", str(models_cfg.get("llm_max_tokens", 150))))
-        self.llm_temperature = float(os.getenv("LLM_TEMPERATURE", str(models_cfg.get("llm_temperature", 0.7))))
-
+        self.llm_max_tokens = int(
+            os.getenv("LLM_MAX_NEW_TOKENS", str(models_cfg.get("llm_max_tokens", 150)))
+        )
+        self.llm_temperature = float(
+            os.getenv("LLM_TEMPERATURE", str(models_cfg.get("llm_temperature", 0.7)))
+        )
 
     def to_dict(self):
         return {
@@ -211,7 +224,11 @@ class RuntimeConfig:
             self.vibevoice_voice = settings["vibevoice_voice"]
         if "edge_tts_voice" in settings:
             self.edge_tts_voice = settings["edge_tts_voice"]
-        if "stt_engine" in settings and settings["stt_engine"] in ["parakeet", "wav2vec2", "vosk"]:
+        if "stt_engine" in settings and settings["stt_engine"] in [
+            "parakeet",
+            "wav2vec2",
+            "vosk",
+        ]:
             self.stt_engine = settings["stt_engine"]
         if "llm_max_tokens" in settings:
             self.llm_max_tokens = max(50, min(500, int(settings["llm_max_tokens"])))
@@ -264,14 +281,17 @@ _DEFAULT_EDGE_VOICES = [
 # Load from config or use defaults
 KOKORO_VOICES = _voices_cfg.get("kokoro", _DEFAULT_KOKORO_VOICES)
 EDGE_TTS_VOICES = _voices_cfg.get("edge", _DEFAULT_EDGE_VOICES)
-VIBEVOICE_VOICES = _voices_cfg.get("vibevoice", [
-    {"id": "en-Carter_man", "name": "Carter (Male)"},
-    {"id": "en-Davis_man", "name": "Davis (Male)"},
-    {"id": "en-Emma_woman", "name": "Emma (Female)"},
-    {"id": "en-Frank_man", "name": "Frank (Male)"},
-    {"id": "en-Grace_woman", "name": "Grace (Female)"},
-    {"id": "en-Mike_man", "name": "Mike (Male)"},
-])
+VIBEVOICE_VOICES = _voices_cfg.get(
+    "vibevoice",
+    [
+        {"id": "en-Carter_man", "name": "Carter (Male)"},
+        {"id": "en-Davis_man", "name": "Davis (Male)"},
+        {"id": "en-Emma_woman", "name": "Emma (Female)"},
+        {"id": "en-Frank_man", "name": "Frank (Male)"},
+        {"id": "en-Grace_woman", "name": "Grace (Female)"},
+        {"id": "en-Mike_man", "name": "Mike (Male)"},
+    ],
+)
 
 
 # --- Settings API Endpoints --- Human Coded
@@ -291,7 +311,10 @@ async def get_settings():
             "vibevoice_voices": VIBEVOICE_VOICES,
             "edge_tts_voices": EDGE_TTS_VOICES,
             "stt_engines": [
-                {"id": "parakeet", "name": "Parakeet (2025, Best Accuracy, 25 Languages)"},
+                {
+                    "id": "parakeet",
+                    "name": "Parakeet (2025, Best Accuracy, 25 Languages)",
+                },
                 {"id": "wav2vec2", "name": "Wav2Vec2 (AI, No Hallucinations)"},
                 {"id": "vosk", "name": "Vosk (Traditional, Fast)"},
             ],
@@ -331,7 +354,9 @@ async def get_ui_config():
     ui_cfg = _CONFIG.get("ui", {})
     return {
         "title": ui_cfg.get("title", "Intentioned | Master Every Connection"),
-        "subtitle": ui_cfg.get("subtitle", "Train your communication skills with AI-powered feedback"),
+        "subtitle": ui_cfg.get(
+            "subtitle", "Train your communication skills with AI-powered feedback"
+        ),
         "show_eye_contact": ui_cfg.get("show_eye_contact", True),
         "show_session_analysis": ui_cfg.get("show_session_analysis", True),
         "default_mic_mode": ui_cfg.get("default_mic_mode", "vad"),
@@ -415,55 +440,85 @@ def _flatten_result_to_row(result: dict, session_id: str | None = None) -> dict:
             "feedback", ""
         ),
         # Eye contact
-        "eye_contact_score": result.get("eye_contact", {}).get("score", "")
-        if result.get("eye_contact")
-        else "",
-        "eye_contact_percentage": result.get("eye_contact", {}).get("percentage", 0)
-        if result.get("eye_contact")
-        else "",
-        "eye_contact_feedback": result.get("eye_contact", {}).get("feedback", "")
-        if result.get("eye_contact")
-        else "",
+        "eye_contact_score": (
+            result.get("eye_contact", {}).get("score", "")
+            if result.get("eye_contact")
+            else ""
+        ),
+        "eye_contact_percentage": (
+            result.get("eye_contact", {}).get("percentage", 0)
+            if result.get("eye_contact")
+            else ""
+        ),
+        "eye_contact_feedback": (
+            result.get("eye_contact", {}).get("feedback", "")
+            if result.get("eye_contact")
+            else ""
+        ),
         # Speech pacing
-        "speech_pacing_score": result.get("speech_pacing", {}).get("score", "")
-        if result.get("speech_pacing")
-        else "",
-        "speech_pacing_avg_gap": result.get("speech_pacing", {}).get("avg_gap", 0)
-        if result.get("speech_pacing")
-        else "",
-        "speech_pacing_feedback": result.get("speech_pacing", {}).get("feedback", "")
-        if result.get("speech_pacing")
-        else "",
+        "speech_pacing_score": (
+            result.get("speech_pacing", {}).get("score", "")
+            if result.get("speech_pacing")
+            else ""
+        ),
+        "speech_pacing_avg_gap": (
+            result.get("speech_pacing", {}).get("avg_gap", 0)
+            if result.get("speech_pacing")
+            else ""
+        ),
+        "speech_pacing_feedback": (
+            result.get("speech_pacing", {}).get("feedback", "")
+            if result.get("speech_pacing")
+            else ""
+        ),
         # Speaking pace (WPM)
-        "speaking_pace_score": result.get("speaking_pace", {}).get("score", "")
-        if result.get("speaking_pace")
-        else "",
-        "speaking_pace_wpm": result.get("speaking_pace", {}).get("avg_wpm", 0)
-        if result.get("speaking_pace")
-        else "",
-        "speaking_pace_feedback": result.get("speaking_pace", {}).get("feedback", "")
-        if result.get("speaking_pace")
-        else "",
+        "speaking_pace_score": (
+            result.get("speaking_pace", {}).get("score", "")
+            if result.get("speaking_pace")
+            else ""
+        ),
+        "speaking_pace_wpm": (
+            result.get("speaking_pace", {}).get("avg_wpm", 0)
+            if result.get("speaking_pace")
+            else ""
+        ),
+        "speaking_pace_feedback": (
+            result.get("speaking_pace", {}).get("feedback", "")
+            if result.get("speaking_pace")
+            else ""
+        ),
         # Response time
-        "response_time_score": result.get("response_time", {}).get("score", "")
-        if result.get("response_time")
-        else "",
-        "response_time_avg": result.get("response_time", {}).get("avg_time", 0)
-        if result.get("response_time")
-        else "",
-        "response_time_feedback": result.get("response_time", {}).get("feedback", "")
-        if result.get("response_time")
-        else "",
+        "response_time_score": (
+            result.get("response_time", {}).get("score", "")
+            if result.get("response_time")
+            else ""
+        ),
+        "response_time_avg": (
+            result.get("response_time", {}).get("avg_time", 0)
+            if result.get("response_time")
+            else ""
+        ),
+        "response_time_feedback": (
+            result.get("response_time", {}).get("feedback", "")
+            if result.get("response_time")
+            else ""
+        ),
         # Interruptions
-        "interruptions_score": result.get("interruptions", {}).get("score", "")
-        if result.get("interruptions")
-        else "",
-        "interruptions_count": result.get("interruptions", {}).get("count", 0)
-        if result.get("interruptions")
-        else "",
-        "interruptions_feedback": result.get("interruptions", {}).get("feedback", "")
-        if result.get("interruptions")
-        else "",
+        "interruptions_score": (
+            result.get("interruptions", {}).get("score", "")
+            if result.get("interruptions")
+            else ""
+        ),
+        "interruptions_count": (
+            result.get("interruptions", {}).get("count", 0)
+            if result.get("interruptions")
+            else ""
+        ),
+        "interruptions_feedback": (
+            result.get("interruptions", {}).get("feedback", "")
+            if result.get("interruptions")
+            else ""
+        ),
         # AI Summary
         "ai_summary": result.get("ai_summary", ""),
     }
@@ -498,9 +553,11 @@ def _row_to_result(row: dict) -> dict:
             "feedback": row.get("tone_feedback", ""),
         },
         "microaggressions": {
-            "detected": row.get("microaggressions_detected", "").lower() == "true"
-            if isinstance(row.get("microaggressions_detected"), str)
-            else bool(row.get("microaggressions_detected")),
+            "detected": (
+                row.get("microaggressions_detected", "").lower() == "true"
+                if isinstance(row.get("microaggressions_detected"), str)
+                else bool(row.get("microaggressions_detected"))
+            ),
             "feedback": row.get("microaggressions_feedback", ""),
         },
         "ai_summary": row.get("ai_summary", ""),
@@ -670,8 +727,8 @@ async def delete_result(filename: str):
 async def import_result(file: UploadFile = File(...)):
     """Import a session result from uploaded CSV file."""
     import csv
-    from io import StringIO
     from datetime import datetime
+    from io import StringIO
 
     if not file.filename or not file.filename.endswith(".csv"):
         return {"error": "Invalid file format - must be a CSV file"}
@@ -710,16 +767,39 @@ async def export_result(filename: str):
     """Export a session result as downloadable CSV."""
     from fastapi.responses import FileResponse
 
+    # Normalize to a basename to drop any directory components
     safe_filename = Path(filename).name
+    # Enforce expected naming pattern for session CSVs
     if not safe_filename.endswith(".csv") or not safe_filename.startswith("session_"):
         return {"error": "Invalid filename"}
 
     filepath = RESULTS_DIR / safe_filename
-    if not filepath.exists():
+    # Ensure the requested file is an existing session result within RESULTS_DIR
+    base_dir = RESULTS_DIR.resolve()
+    resolved_path = filepath.resolve()
+
+    # Check directory containment before exists() to prevent TOCTOU issues
+    # Use is_relative_to when available (Python 3.9+); otherwise, fall back to relative_to
+    # Note: relative_to raises ValueError when path is outside base_dir or cannot be made relative
+    is_inside_results = False
+    if sys.version_info >= (3, 9):
+        is_inside_results = resolved_path.is_relative_to(base_dir)
+    else:
+        try:
+            resolved_path.relative_to(base_dir)
+            is_inside_results = True
+        except ValueError:
+            is_inside_results = False
+
+    if not is_inside_results:
+        return {"error": "Result not found"}
+
+    # Check that the resolved path exists
+    if not resolved_path.exists():
         return {"error": "Result not found"}
 
     return FileResponse(
-        path=filepath,
+        path=resolved_path,
         media_type="text/csv",
         filename=safe_filename,
     )
@@ -730,9 +810,10 @@ async def export_result(filename: str):
 async def export_all_results():
     """Export ALL session results as a single combined CSV file."""
     import csv
-    from io import StringIO
-    from fastapi.responses import Response
     from datetime import datetime
+    from io import StringIO
+
+    from fastapi.responses import Response
 
     # Collect all rows from all CSV files
     all_rows = []
@@ -952,13 +1033,13 @@ Keep the tone professional yet warm. Do not use bullet points or lists.""",
                         top_p=0.9,
                         pad_token_id=tokenizer.pad_token_id,
                     )
-            
+
             # Access cuda_streams from global scope
             _cuda_streams = globals().get("cuda_streams", {})
-            if torch.cuda.is_available() and 'llm' in _cuda_streams:
-                with torch.cuda.stream(_cuda_streams['llm']):
+            if torch.cuda.is_available() and "llm" in _cuda_streams:
+                with torch.cuda.stream(_cuda_streams["llm"]):
                     outputs = _generate_summary()
-                    _cuda_streams['llm'].synchronize()
+                    _cuda_streams["llm"].synchronize()
             else:
                 outputs = _generate_summary()
 
@@ -1178,7 +1259,9 @@ def analyze_delivery_and_tone(
     # Scenario-specific tone feedback
     if scenario == "parent-teacher" or scenario == "parent-teacher-reversed":
         if "concern" in combined_text.lower() or "worried" in combined_text.lower():
-            tone_positives.append("Appropriately expressed concerns during the conference.")
+            tone_positives.append(
+                "Appropriately expressed concerns during the conference."
+            )
 
     tone_score = (
         "🟢 Excellent"
@@ -1345,7 +1428,7 @@ Respond with ONLY one word:
     ]
 
     try:
-        input_ids = model_manager.llm_tokenizer.apply_chat_template( # type: ignore
+        input_ids = model_manager.llm_tokenizer.apply_chat_template(  # type: ignore
             uniqueness_prompt,
             return_tensors="pt",
             add_generation_prompt=True,
@@ -1358,11 +1441,11 @@ Respond with ONLY one word:
             max_new_tokens=10,
             do_sample=False,
             temperature=0.1,
-            pad_token_id=model_manager.llm_tokenizer.pad_token_id, # pyright: ignore[reportOptionalMemberAccess]
+            pad_token_id=model_manager.llm_tokenizer.pad_token_id,  # pyright: ignore[reportOptionalMemberAccess]
         )
 
         response = (
-            model_manager.llm_tokenizer.decode( # type: ignore
+            model_manager.llm_tokenizer.decode(  # type: ignore
                 outputs[0][input_ids.shape[1] :], skip_special_tokens=True
             )
             .strip()
@@ -1418,11 +1501,11 @@ Be strict about SEVERE - only the most dangerous content qualifies.""",
             max_new_tokens=10,
             do_sample=False,
             temperature=0.1,
-            pad_token_id=model_manager.llm_tokenizer.pad_token_id, # type: ignore
+            pad_token_id=model_manager.llm_tokenizer.pad_token_id,  # type: ignore
         )
 
         response = (
-            model_manager.llm_tokenizer.decode( # type: ignore
+            model_manager.llm_tokenizer.decode(  # type: ignore
                 outputs[0][input_ids.shape[1] :], skip_special_tokens=True
             )
             .strip()
@@ -1624,6 +1707,7 @@ When in doubt, ALWAYS say SAFE. False negatives are better than false positives 
 
 _DEFAULT_SERIOUS_KEYWORDS = ["kill", "murder", "bomb", "attack", "csam", "child"]
 
+
 def _get_moderation_config() -> dict:
     """Get moderation settings from config.json or defaults."""
     mod_cfg = _CONFIG.get("moderation", {})
@@ -1632,6 +1716,7 @@ def _get_moderation_config() -> dict:
         "system_prompt": mod_cfg.get("system_prompt", _DEFAULT_MODERATION_PROMPT),
         "serious_keywords": mod_cfg.get("serious_keywords", _DEFAULT_SERIOUS_KEYWORDS),
     }
+
 
 def check_content_safety_with_ai(text: str, conversation_history: list[dict]) -> dict:
     """
@@ -1645,7 +1730,7 @@ def check_content_safety_with_ai(text: str, conversation_history: list[dict]) ->
 
     # Get moderation config from config.json
     mod_config = _get_moderation_config()
-    
+
     # Check if moderation is disabled
     if not mod_config["enabled"]:
         return {"safe": True, "reason": None}
@@ -1683,7 +1768,7 @@ def check_content_safety_with_ai(text: str, conversation_history: list[dict]) ->
 
     try:
         # Use the model for moderation (quick check)
-        input_ids = model_manager.llm_tokenizer.apply_chat_template( # type: ignore
+        input_ids = model_manager.llm_tokenizer.apply_chat_template(  # type: ignore
             moderation_prompt,
             return_tensors="pt",
             add_generation_prompt=True,
@@ -1696,12 +1781,16 @@ def check_content_safety_with_ai(text: str, conversation_history: list[dict]) ->
             max_new_tokens=30,  # Reduced - we only need SAFE/UNSAFE
             do_sample=False,
             temperature=0.0,  # Deterministic
-            pad_token_id=model_manager.llm_tokenizer.pad_token_id, # pyright: ignore[reportOptionalMemberAccess]
+            pad_token_id=model_manager.llm_tokenizer.pad_token_id,  # pyright: ignore[reportOptionalMemberAccess]
         )
 
-        response = model_manager.llm_tokenizer.decode( # pyright: ignore[reportOptionalMemberAccess]
-            outputs[0][input_ids.shape[1] :], skip_special_tokens=True
-        ).strip().upper()
+        response = (
+            model_manager.llm_tokenizer.decode(  # pyright: ignore[reportOptionalMemberAccess]
+                outputs[0][input_ids.shape[1] :], skip_special_tokens=True
+            )
+            .strip()
+            .upper()
+        )
 
         # Parse response - only flag if clearly UNSAFE
         if response.startswith("UNSAFE"):
@@ -2213,11 +2302,11 @@ def get_kokoro_tts():
     with _kokoro_lock:
         if _kokoro_pipeline is None:
             try:
-                from kokoro import KPipeline # type: ignore
+                from kokoro import KPipeline  # type: ignore
 
                 print("[TTS] Loading Kokoro-82M (lightweight, high-quality TTS)...")
                 # 'a' = American English, 'b' = British English
-                _kokoro_pipeline = KPipeline(lang_code='a')
+                _kokoro_pipeline = KPipeline(lang_code="a")
                 print("[TTS] Kokoro-82M loaded successfully")
             except ImportError as e:
                 print(f"[TTS] Kokoro import failed: {e}")
@@ -2252,12 +2341,12 @@ def synthesize_with_kokoro(text: str) -> bytes | None:
             for _, _, audio in pipeline(clean_text, voice=voice):
                 chunks.append(audio)
             return chunks
-        
+
         # Use TTS CUDA stream for parallel GPU operations
-        if torch.cuda.is_available() and 'tts' in cuda_streams:
-            with torch.cuda.stream(cuda_streams['tts']):
+        if torch.cuda.is_available() and "tts" in cuda_streams:
+            with torch.cuda.stream(cuda_streams["tts"]):
                 audio_chunks = _generate_kokoro_audio()
-                cuda_streams['tts'].synchronize()
+                cuda_streams["tts"].synchronize()
         else:
             audio_chunks = _generate_kokoro_audio()
 
@@ -2267,6 +2356,7 @@ def synthesize_with_kokoro(text: str) -> bytes | None:
 
         # Concatenate all chunks
         import numpy as np
+
         audio_array = np.concatenate(audio_chunks)
 
         # Kokoro outputs at 24kHz
@@ -2295,6 +2385,7 @@ def synthesize_with_kokoro(text: str) -> bytes | None:
     except Exception as e:
         print(f"[TTS] Kokoro synthesis failed: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 
@@ -2462,25 +2553,27 @@ def synthesize_with_neural_tts(text: str) -> bytes | None:
         def _generate_tts():
             with torch.no_grad():
                 return model.generate(
-                    **inputs, # pyright: ignore[reportArgumentType]
+                    **inputs,  # pyright: ignore[reportArgumentType]
                     max_new_tokens=None,
                     cfg_scale=3.0,  # Classifier-free guidance scale
                     tokenizer=processor.tokenizer,
-                    generation_config={"do_sample": False}, # pyright: ignore[reportArgumentType]
+                    generation_config={
+                        "do_sample": False
+                    },  # pyright: ignore[reportArgumentType]
                     verbose=False,
                     all_prefilled_outputs=copy.deepcopy(voice_preset),
                 )
-        
+
         # Use TTS CUDA stream for parallel GPU operations
-        if torch.cuda.is_available() and 'tts' in cuda_streams:
-            with torch.cuda.stream(cuda_streams['tts']):
+        if torch.cuda.is_available() and "tts" in cuda_streams:
+            with torch.cuda.stream(cuda_streams["tts"]):
                 outputs = _generate_tts()
-                cuda_streams['tts'].synchronize()
+                cuda_streams["tts"].synchronize()
         else:
             outputs = _generate_tts()
 
         # Extract audio data
-        if outputs.speech_outputs and outputs.speech_outputs[0] is not None: # type: ignore
+        if outputs.speech_outputs and outputs.speech_outputs[0] is not None:  # type: ignore
             audio_tensor = outputs.speech_outputs[0]
 
             # Convert to numpy
@@ -2542,13 +2635,14 @@ PYTTSX3_VOLUME = float(os.getenv("PYTTSX3_VOLUME", "1.0"))  # 0.0 to 1.0
 # Thread-safe pyttsx3 engine (created per-call due to threading issues)
 _pyttsx3_lock = Lock()
 
+
 def synthesize_with_pyttsx3(text: str) -> bytes | None:
     """Synthesize speech using pyttsx3 (offline, non-AI TTS)."""
     global pyttsx3
-    
+
     if not text.strip():
         return None
-    
+
     if not PYTTSX3_AVAILABLE:
         print("⚠️ pyttsx3 not available, cannot synthesize")
         return None
@@ -2660,7 +2754,9 @@ def load_llm_stack(model_id: str):
             )
 
         # Use BitsAndBytesConfig for 4-bit quantization (new recommended way)
-        from transformers import BitsAndBytesConfig # pyright: ignore[reportPrivateImportUsage]
+        from transformers import (
+            BitsAndBytesConfig,  # pyright: ignore[reportPrivateImportUsage]
+        )
 
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -2697,10 +2793,12 @@ torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 # CUDA Streams for parallel inference (STT, TTS can run on separate streams)
 cuda_streams = {}
 if torch.cuda.is_available():
-    cuda_streams['stt'] = torch.cuda.Stream()
-    cuda_streams['tts'] = torch.cuda.Stream()
-    cuda_streams['llm'] = torch.cuda.Stream()  # LLM uses default stream but we can sync
-    print(f"🚀 Launching Neural Engine on {device.upper()} with CUDA Streams (Parallel Processing)...")
+    cuda_streams["stt"] = torch.cuda.Stream()
+    cuda_streams["tts"] = torch.cuda.Stream()
+    cuda_streams["llm"] = torch.cuda.Stream()  # LLM uses default stream but we can sync
+    print(
+        f"🚀 Launching Neural Engine on {device.upper()} with CUDA Streams (Parallel Processing)..."
+    )
 else:
     print(f"🚀 Launching Neural Engine on {device.upper()} (Standard SDPA)...")
 
@@ -2710,10 +2808,14 @@ executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cuda_worker")
 
 def run_in_executor(func):
     """Decorator to run sync functions in thread pool executor."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+        return await loop.run_in_executor(
+            executor, functools.partial(func, *args, **kwargs)
+        )
+
     return wrapper
 
 
@@ -2722,14 +2824,15 @@ def run_llm_with_cuda_stream(model, input_ids, **generation_kwargs):
     Run LLM generation with CUDA stream optimization.
     Uses dedicated 'llm' CUDA stream for parallel processing.
     """
+
     def _generate():
         with torch.no_grad():
             return model.generate(input_ids, **generation_kwargs)
-    
-    if torch.cuda.is_available() and 'llm' in cuda_streams:
-        with torch.cuda.stream(cuda_streams['llm']):
+
+    if torch.cuda.is_available() and "llm" in cuda_streams:
+        with torch.cuda.stream(cuda_streams["llm"]):
             outputs = _generate()
-            cuda_streams['llm'].synchronize()
+            cuda_streams["llm"].synchronize()
             return outputs
     else:
         return _generate()
@@ -2791,12 +2894,14 @@ class ModelManager:
 
         if vosk_path.exists():
             print(f"Loading STT: Vosk (non-AI) from {vosk_path}...")
-            self.vosk_model = VoskModel(str(vosk_path)) # pyright: ignore[reportPossiblyUnboundVariable]
+            self.vosk_model = VoskModel(
+                str(vosk_path)
+            )  # pyright: ignore[reportPossiblyUnboundVariable]
             print("✅ Vosk model loaded (non-AI STT)")
         else:
             print("⚠️ Vosk model download failed, falling back to Whisper")
             self.use_vosk = False
-            self._load_whisper_model() # pyright: ignore[reportAttributeAccessIssue]
+            self._load_whisper_model()  # pyright: ignore[reportAttributeAccessIssue]
 
     def _download_vosk_model(self, vosk_path):
         """Download Vosk model if not present."""
@@ -2884,15 +2989,19 @@ class ModelManager:
         stt_engine = runtime_config.stt_engine
 
         # Use dedicated CUDA stream for STT to allow parallel processing
-        if torch.cuda.is_available() and 'stt' in cuda_streams:
-            with torch.cuda.stream(cuda_streams['stt']):
-                result = self._transcribe_audio_impl(audio_array, sample_rate, stt_engine)
-                cuda_streams['stt'].synchronize()
+        if torch.cuda.is_available() and "stt" in cuda_streams:
+            with torch.cuda.stream(cuda_streams["stt"]):
+                result = self._transcribe_audio_impl(
+                    audio_array, sample_rate, stt_engine
+                )
+                cuda_streams["stt"].synchronize()
                 return result
         else:
             return self._transcribe_audio_impl(audio_array, sample_rate, stt_engine)
 
-    def _transcribe_audio_impl(self, audio_array: np.ndarray, sample_rate: int, stt_engine: str) -> str:
+    def _transcribe_audio_impl(
+        self, audio_array: np.ndarray, sample_rate: int, stt_engine: str
+    ) -> str:
         """Internal transcription implementation."""
         if stt_engine == "parakeet" and self.parakeet_model is not None:
             return self._transcribe_with_parakeet(audio_array, sample_rate)
@@ -2949,7 +3058,9 @@ class ModelManager:
 
         return text
 
-    def _transcribe_with_parakeet(self, audio_array: np.ndarray, sample_rate: int) -> str:
+    def _transcribe_with_parakeet(
+        self, audio_array: np.ndarray, sample_rate: int
+    ) -> str:
         """Transcribe using NVIDIA Parakeet TDT 0.6B v3 (2025, best accuracy)."""
         import tempfile
 
@@ -2989,14 +3100,14 @@ class ModelManager:
                 # - Hypothesis object: has .text attribute
                 if isinstance(result, str):
                     text = result
-                elif hasattr(result, 'text'):
+                elif hasattr(result, "text"):
                     # NeMo Hypothesis object - extract text attribute
                     text = result.text
                 else:
                     # Fallback: try to get text from unknown object
                     text = str(result)
                     print(f"[STT] Warning: Unexpected result type: {type(result)}")
-                
+
                 text = clean_transcript_text(text)
 
                 # Parakeet TDT doesn't hallucinate, but filter empty/noise
@@ -3010,6 +3121,7 @@ class ModelManager:
         except Exception as e:
             print(f"[STT] Parakeet transcription failed: {e}")
             import traceback
+
             traceback.print_exc()
             return ""
 
@@ -3105,7 +3217,11 @@ class ModelManager:
     @property
     def is_loaded(self) -> bool:
         # Loaded if we have Parakeet, Vosk, or Wav2Vec2 STT, plus LLM
-        has_stt = self.parakeet_model is not None or self.vosk_model is not None or self.stt_model is not None
+        has_stt = (
+            self.parakeet_model is not None
+            or self.vosk_model is not None
+            or self.stt_model is not None
+        )
         return has_stt and self.llm_model is not None
 
 
@@ -3548,7 +3664,9 @@ async def handle_user_turn(
     attention_mask = torch.ones_like(input_ids).to(device)
 
     streamer = TextIteratorStreamer(
-        model_manager.llm_tokenizer, skip_prompt=True, skip_special_tokens=True # pyright: ignore[reportArgumentType]
+        model_manager.llm_tokenizer,
+        skip_prompt=True,
+        skip_special_tokens=True,  # pyright: ignore[reportArgumentType]
     )
 
     generation_kwargs = dict(
@@ -3611,10 +3729,11 @@ _FALLBACK_SCENARIO_PROMPTS = {
     "general": "You are a friendly, helpful AI assistant. Speak naturally and keep responses short (1-2 sentences max).",
 }
 
+
 def _load_scenario_prompts_from_config() -> dict:
     """Load scenario prompts from config.json."""
     prompts = {}
-    
+
     # Load from config.json (primary source)
     config_scenarios = _CONFIG.get("scenarios", [])
     if config_scenarios:
@@ -3624,19 +3743,22 @@ def _load_scenario_prompts_from_config() -> dict:
             if scenario_id and system_prompt:
                 prompts[scenario_id] = system_prompt
                 print(f"📋 Loaded scenario: {scenario_id}")
-    
+
     # Use fallback if no scenarios loaded
     if not prompts:
         print("⚠️ No scenarios in config.json, using fallback defaults")
         prompts = _FALLBACK_SCENARIO_PROMPTS.copy()
-    
+
     return prompts
+
 
 SCENARIO_PROMPTS = _load_scenario_prompts_from_config()
 DEFAULT_SCENARIO = "general"
 
 # Legacy single prompt for backwards compatibility
-SYSTEM_PROMPT = SCENARIO_PROMPTS.get(DEFAULT_SCENARIO, _FALLBACK_SCENARIO_PROMPTS["general"])
+SYSTEM_PROMPT = SCENARIO_PROMPTS.get(
+    DEFAULT_SCENARIO, _FALLBACK_SCENARIO_PROMPTS["general"]
+)
 
 
 async def generate_audio_chunk(text: str):
@@ -3651,7 +3773,9 @@ async def generate_audio_chunk(text: str):
 
     if tts_engine == "kokoro":
         # Use dedicated CUDA executor for better parallel performance
-        wav_bytes = await loop.run_in_executor(executor, synthesize_with_kokoro, normalized)
+        wav_bytes = await loop.run_in_executor(
+            executor, synthesize_with_kokoro, normalized
+        )
         if wav_bytes:
             return base64.b64encode(wav_bytes).decode("utf-8")
         # Fallback to Edge TTS if Kokoro fails
@@ -3660,7 +3784,9 @@ async def generate_audio_chunk(text: str):
 
     if tts_engine == "vibevoice":
         # Use dedicated CUDA executor for better parallel performance
-        wav_bytes = await loop.run_in_executor(executor, synthesize_with_neural_tts, normalized)
+        wav_bytes = await loop.run_in_executor(
+            executor, synthesize_with_neural_tts, normalized
+        )
         if wav_bytes:
             return base64.b64encode(wav_bytes).decode("utf-8")
         # Fallback to Edge TTS if VibeVoice fails
@@ -3670,7 +3796,9 @@ async def generate_audio_chunk(text: str):
     if tts_engine == "edge":
         wav_bytes = await synthesize_with_edge_tts(normalized)
     elif tts_engine == "pyttsx3":
-        wav_bytes = await loop.run_in_executor(executor, synthesize_with_pyttsx3, normalized)
+        wav_bytes = await loop.run_in_executor(
+            executor, synthesize_with_pyttsx3, normalized
+        )
     else:
         # Default fallback to edge
         wav_bytes = await synthesize_with_edge_tts(normalized)
@@ -3705,20 +3833,21 @@ async def websocket_endpoint(websocket: WebSocket):
         active_sessions[session_id] = {"connected_at": asyncio.get_event_loop().time()}
 
     # Send immediate status so page can load while models initialize
-    await websocket.send_json({
-        "status": "models_loading",
-        "message": "Loading AI models... This may take a moment."
-    })
+    await websocket.send_json(
+        {
+            "status": "models_loading",
+            "message": "Loading AI models... This may take a moment.",
+        }
+    )
 
     # Load models asynchronously to not block the WebSocket
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(executor, model_manager.load_models)
-    
+
     # Notify client that models are ready
-    await websocket.send_json({
-        "status": "models_ready",
-        "message": "AI models loaded and ready!"
-    })
+    await websocket.send_json(
+        {"status": "models_ready", "message": "AI models loaded and ready!"}
+    )
 
     print(
         f"✅ Client Connected (Session: {session_id[:8]}..., Active: {len(active_sessions)})"
@@ -3865,8 +3994,8 @@ async def serve_static(filename: str):
 
 
 if __name__ == "__main__":
-    from pathlib import Path
     import socket
+    from pathlib import Path
 
     import uvicorn
 
@@ -3877,10 +4006,7 @@ if __name__ == "__main__":
         try:
             # Find PID using the port
             result = subprocess.run(
-                ["netstat", "-ano"],
-                capture_output=True,
-                text=True,
-                check=True
+                ["netstat", "-ano"], capture_output=True, text=True, check=True
             )
             for line in result.stdout.splitlines():
                 if f":{port}" in line and "LISTENING" in line:
@@ -3888,7 +4014,9 @@ if __name__ == "__main__":
                     pid = parts[-1]
                     if pid.isdigit():
                         print(f"⚠️ Port {port} in use by PID {pid}, terminating...")
-                        subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+                        subprocess.run(
+                            ["taskkill", "/F", "/PID", pid], capture_output=True
+                        )
                         return True
         except Exception as e:
             print(f"⚠️ Could not check/kill process on port {port}: {e}")
@@ -3897,7 +4025,7 @@ if __name__ == "__main__":
     def is_port_in_use(port: int) -> bool:
         """Check if a port is in use."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('127.0.0.1', port)) == 0
+            return s.connect_ex(("127.0.0.1", port)) == 0
 
     # Free up port if in use
     if is_port_in_use(SERVER_PORT):
@@ -3905,9 +4033,12 @@ if __name__ == "__main__":
         kill_process_on_port(SERVER_PORT)
         # Wait a moment for port to be released
         import time
+
         time.sleep(1)
         if is_port_in_use(SERVER_PORT):
-            print(f"❌ Failed to free port {SERVER_PORT}. Please close the application using it.")
+            print(
+                f"❌ Failed to free port {SERVER_PORT}. Please close the application using it."
+            )
             sys.exit(1)
         print(f"✅ Port {SERVER_PORT} is now free")
 
@@ -3927,8 +4058,8 @@ if __name__ == "__main__":
         )
     else:
         if SSL_ENABLED and (not local_cert.exists() or not local_key.exists()):
-            print(f"⚠️ SSL enabled in config but certs not found at {SSL_CERT_PATH}, {SSL_KEY_PATH}")
-        print(
-            f"🔓 Starting HTTP/WS server on {SERVER_HOST}:{SERVER_PORT}"
-        )
+            print(
+                f"⚠️ SSL enabled in config but certs not found at {SSL_CERT_PATH}, {SSL_KEY_PATH}"
+            )
+        print(f"🔓 Starting HTTP/WS server on {SERVER_HOST}:{SERVER_PORT}")
         uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)
