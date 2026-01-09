@@ -1336,8 +1336,40 @@
     </style>
 </head>
 <body>
+    <!-- Development Warning Banner -->
+    <div id="devWarningBanner" style="
+        background: linear-gradient(90deg, #f59e0b, #d97706);
+        color: #000;
+        text-align: center;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    ">
+        <span>⚠️</span>
+        <span>This site is still in development and may go down at any time. Use at your own risk.</span>
+        <button onclick="this.parentElement.style.display='none'" style="
+            background: rgba(0,0,0,0.2);
+            border: none;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 12px;
+            font-size: 12px;
+        ">Dismiss</button>
+    </div>
+
     <!-- Malwarebytes Browser Guard Warning Banner -->
-    <div id="malwarebytesWarning" class="security-warning-banner">
+    <div id="malwarebytesWarning" class="security-warning-banner" style="margin-top: 36px;">
         <button class="warning-close" onclick="dismissMalwarebytesWarning()" title="Dismiss">&times;</button>
         <div class="warning-content">
             <div class="warning-icon">🛡️</div>
@@ -1716,37 +1748,23 @@
         right: 0;
         background: var(--bg-secondary);
         border-top: 1px solid var(--border-color);
-        padding: 10px 16px;
+        padding: 6px 16px;
         text-align: center;
-        font-size: 12px;
+        font-size: 11px;
         color: var(--text-muted);
         z-index: 100;
     ">
-        <div style="margin-bottom: 4px;">
-            <a href="/privacy_policy.html" style="color: var(--accent); text-decoration: none; margin: 0 8px;">Privacy Policy</a>
-            <span>•</span>
-            <a href="/terms_of_use.html" style="color: var(--accent); text-decoration: none; margin: 0 8px;">Terms of Use</a>
-            <span>•</span>
-            <a href="/code_of_conduct.html" style="color: var(--accent); text-decoration: none; margin: 0 8px;">Code of Conduct</a>
-            <span>•</span>
-            <a href="#" onclick="showCreditsModal(); return false;" style="color: var(--accent); text-decoration: none; margin: 0 8px;">Credits & Licenses</a>
-        </div>
-        <div>
-            <span>Licensed under </span>
-            <a href="https://www.gnu.org/licenses/agpl-3.0.html" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               style="color: var(--accent); text-decoration: none;">
-                AGPL-3.0
-            </a>
-            <span> • </span>
-            <a href="https://github.com/KoJesko/Honors-Thesis-Conversational-AI-Training" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               style="color: var(--accent); text-decoration: none;">
-                View Source on GitHub
-            </a>
-        </div>
+        <a href="/privacy_policy.html" style="color: var(--accent); text-decoration: none; margin: 0 6px;">Privacy</a>
+        <span>•</span>
+        <a href="/terms_of_use.html" style="color: var(--accent); text-decoration: none; margin: 0 6px;">Terms</a>
+        <span>•</span>
+        <a href="/code_of_conduct.html" style="color: var(--accent); text-decoration: none; margin: 0 6px;">Conduct</a>
+        <span>•</span>
+        <a href="#" onclick="showCreditsModal(); return false;" style="color: var(--accent); text-decoration: none; margin: 0 6px;">Credits</a>
+        <span>•</span>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; margin: 0 6px;">AGPL-3.0</a>
+        <span>•</span>
+        <a href="https://github.com/KoJesko/intentioned.tech" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none; margin: 0 6px;">GitHub</a>
     </footer>
 
     <script src="script.js?v=13"></script>
