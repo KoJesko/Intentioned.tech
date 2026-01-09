@@ -129,7 +129,6 @@ from pydantic import BaseModel
 
 # Vosk for non-AI speech recognition (optional, falls back to Whisper if not available)
 try:
-    from vosk import KaldiRecognizer
     from vosk import Model as VoskModel
 
     VOSK_AVAILABLE = True
@@ -800,7 +799,7 @@ async def export_result(filename: str):
         return {"error": "Result not found"}
 
     return FileResponse(
-        path=filepath,
+        path=resolved_path,
         media_type="text/csv",
         filename=safe_filename,
     )
