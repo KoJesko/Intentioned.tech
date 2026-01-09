@@ -117,3 +117,5 @@ noip-ddns copy.service
 noip-ddns copy.timer
 
 session_results/
+config.json
+config.json
